@@ -30,23 +30,55 @@ export const useAuth = () => {
       return { success: false, error: error.value }
     }
 
+    // Limpar espaços em branco
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanPassword = password.trim()
+
+    if (!cleanEmail || !cleanPassword) {
+      error.value = 'Por favor, preencha todos os campos.'
+      return { success: false, error: error.value }
+    }
+
     isLoading.value = true
     error.value = null
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
+        email: cleanEmail,
+        password: cleanPassword
       })
 
       isLoading.value = false
 
       if (authError) {
-        error.value = 'As credenciais não são válidas.'
+        // Mensagens de erro mais específicas
+        let errorMessage = 'Erro ao fazer login.'
+        
+        if (authError.message) {
+          // Verifica se é erro de email não confirmado
+          if (authError.message.includes('email') && authError.message.includes('confirm')) {
+            errorMessage = 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.'
+          } else if (authError.message.includes('Invalid login credentials')) {
+            errorMessage = 'Email ou senha incorretos. Verifique suas credenciais.'
+          } else if (authError.message.includes('Email not confirmed')) {
+            errorMessage = 'Email não confirmado. Verifique sua caixa de entrada e confirme seu email.'
+          } else {
+            errorMessage = authError.message
+          }
+        }
+        
+        error.value = errorMessage
+        console.error('Erro no login:', authError)
         return { success: false, error: error.value }
       }
 
       if (data?.user) {
+        // Verifica se o email foi confirmado
+        if (data.user.email_confirmed_at === null) {
+          error.value = 'Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.'
+          return { success: false, error: error.value }
+        }
+
         // Login bem-sucedido - redireciona para index
         await router.push('/')
         return { success: true, user: data.user }
@@ -54,9 +86,10 @@ export const useAuth = () => {
 
       error.value = 'Erro ao realizar login.'
       return { success: false, error: error.value }
-    } catch (err) {
+    } catch (err: any) {
       isLoading.value = false
-      error.value = 'As credenciais não são válidas.'
+      console.error('Erro no login (catch):', err)
+      error.value = err?.message || 'Erro ao realizar login. Tente novamente.'
       return { success: false, error: error.value }
     }
   }
@@ -113,6 +146,89 @@ export const useAuth = () => {
     return !!user
   }
 
+  /**
+   * Registra um novo usuário no Supabase
+   * 
+   * @param email - Email do usuário
+   * @param password - Senha do usuário
+   * @param displayName - Nome de exibição do usuário
+   * @returns Promise com resultado do registro
+   */
+  const register = async (email: string, password: string, displayName: string) => {
+    // Validação básica
+    if (!email || !password || !displayName) {
+      error.value = 'Por favor, preencha todos os campos.'
+      return { success: false, error: error.value }
+    }
+
+    // Limpar espaços em branco
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanPassword = password.trim()
+    const cleanDisplayName = displayName.trim()
+
+    if (!cleanEmail || !cleanPassword || !cleanDisplayName) {
+      error.value = 'Por favor, preencha todos os campos.'
+      return { success: false, error: error.value }
+    }
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Registra o usuário no Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: cleanPassword,
+        options: {
+          data: {
+            display_name: cleanDisplayName
+          },
+          emailRedirectTo: `${window.location.origin}/confirm`
+        }
+      })
+
+      if (authError) {
+        isLoading.value = false
+        error.value = authError.message || 'Erro ao registrar usuário.'
+        return { success: false, error: error.value }
+      }
+
+      if (data?.user) {
+        // Cria o perfil na tabela profiles
+        const { error: profileError } = await (supabase
+          .from('profiles') as any)
+          .insert({
+            id: data.user.id,
+            display_name: cleanDisplayName,
+            email: cleanEmail
+          })
+
+        if (profileError) {
+          // Se falhar ao criar perfil, tenta atualizar se já existir
+          const { error: updateError } = await (supabase
+            .from('profiles') as any)
+            .update({ display_name: cleanDisplayName })
+            .eq('id', data.user.id)
+
+          if (updateError) {
+            console.error('Erro ao criar/atualizar perfil:', updateError)
+          }
+        }
+
+        isLoading.value = false
+        return { success: true, user: data.user }
+      }
+
+      isLoading.value = false
+      error.value = 'Erro ao registrar usuário.'
+      return { success: false, error: error.value }
+    } catch (err) {
+      isLoading.value = false
+      error.value = 'Erro ao registrar usuário. Tente novamente.'
+      return { success: false, error: error.value }
+    }
+  }
+
   return {
     // Estados
     isLoading,
@@ -121,6 +237,7 @@ export const useAuth = () => {
     // Métodos
     login,
     logout,
+    register,
     getCurrentUser,
     isAuthenticated
   }

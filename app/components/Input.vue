@@ -3,10 +3,10 @@
     <label
       v-if="label"
       :for="inputId"
-      class="block text-sm font-medium text-gray-700 mb-2"
+      class="block text-sm font-semibold text-gray-800 mb-2.5 tracking-tight"
     >
       {{ label }}
-      <span v-if="required" class="text-red-500">*</span>
+      <span v-if="required" class="text-danger-500 ml-0.5">*</span>
     </label>
     <div class="relative">
       <input
@@ -69,13 +69,16 @@
     </div>
     <p
       v-if="error"
-      class="mt-1 text-sm text-red-600"
+      class="mt-2 text-sm text-danger-600 font-medium flex items-center gap-1.5"
     >
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+      </svg>
       {{ error }}
     </p>
     <p
       v-if="hint && !error"
-      class="mt-1 text-sm text-gray-500"
+      class="mt-2 text-sm text-gray-500 font-normal"
     >
       {{ hint }}
     </p>
@@ -146,33 +149,45 @@ const togglePasswordVisibility = () => {
 
 const inputClasses = computed(() => [
   'w-full',
-  'px-4',
-  'py-2',
+  'px-5',
+  'py-3.5',
   'border',
-  'rounded-lg',
+  'rounded-xl',
+  'text-gray-900',
+  'placeholder:text-gray-400',
   'focus:outline-none',
   'focus:ring-2',
-  'focus:ring-offset-2',
-  'transition',
-  props.type === 'password' ? 'pr-10' : '',
+  'focus:ring-offset-0',
+  'transition-all',
+  'duration-200',
+  'ease-in-out',
+  'shadow-sm',
+  'hover:shadow-md',
+  'focus:shadow-lg',
+  props.type === 'password' ? 'pr-12' : '',
   props.error
-    ? 'border-danger-500 focus:ring-danger-500 focus:border-danger-500'
-    : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500',
-  props.disabled ? 'bg-gray-100 cursor-not-allowed opacity-60' : 'bg-white'
+    ? 'border-danger-400 focus:ring-danger-500 focus:border-danger-500 bg-danger-50/30'
+    : 'border-gray-200 focus:ring-primary-500 focus:border-primary-500 bg-white hover:border-gray-300',
+  props.disabled ? 'bg-gray-50 cursor-not-allowed opacity-50 border-gray-200' : ''
 ])
 
 const eyeButtonClasses = computed(() => [
   'absolute',
-  'right-3',
+  'right-4',
   'top-1/2',
   'transform',
   '-translate-y-1/2',
-  'text-gray-500',
-  'hover:text-gray-700',
+  'text-gray-400',
+  'hover:text-gray-600',
   'focus:outline-none',
-  'transition-colors',
+  'transition-all',
+  'duration-200',
   'cursor-pointer',
-  props.disabled ? 'opacity-50 cursor-not-allowed' : ''
+  'p-1',
+  'rounded-md',
+  'hover:bg-gray-100',
+  'active:scale-95',
+  props.disabled ? 'opacity-30 cursor-not-allowed' : ''
 ])
 </script>
 
