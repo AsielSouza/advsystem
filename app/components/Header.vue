@@ -4,6 +4,7 @@
       <div class="flex items-center justify-between">
         <!-- Logo/Home Button à esquerda -->
         <button
+          @click="goToHome"
           class="text-2xl font-bold text-primary-600 hover:text-primary-700 transition-colors"
         >
           AdvSystem
@@ -30,9 +31,13 @@ import { ref, onMounted } from 'vue'
 import Configuration from './Configuration.vue'
 import LogoutButton from './LogoutButton.vue'
 
-// useSupabaseClient é auto-importado pelo Nuxt
+const router = useRouter()
 const supabase = useSupabaseClient()
 const displayName = ref('')
+
+const goToHome = () => {
+  router.push('/')
+}
 
 const fetchUserDisplayName = async () => {
   try {
@@ -46,8 +51,8 @@ const fetchUserDisplayName = async () => {
 
     // Tenta buscar o display_name da tabela de perfis
     // Primeiro, tenta buscar de uma tabela 'profiles'
-    const { data: profile, error: profileError } = await (supabase
-      .from('profiles') as any)
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
       .select('display_name')
       .eq('id', user.id)
       .single()
