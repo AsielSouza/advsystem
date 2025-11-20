@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100/80 flex items-center justify-center p-6 lg:p-8 relative overflow-hidden">
+  <div class="h-full w-full bg-gradient-to-br from-primary-50 via-white to-primary-100/80 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden overflow-y-auto">
     <!-- Decorative elements -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute -top-40 -right-40 w-80 h-80 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>

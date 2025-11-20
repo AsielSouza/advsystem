@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen bg-gray-50 py-8 px-6">
-    <div class="max-w-7xl mx-auto">
+  <div class="h-full w-full bg-gray-50 py-4 sm:py-8 px-4 sm:px-6 overflow-y-auto">
+    <div class="max-w-7xl mx-auto w-full">
       <!-- Cabeçalho da página -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">

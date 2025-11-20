@@ -1,7 +1,7 @@
 <template>
   <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
     <!-- Cabeçalho da tabela -->
-    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+    <div class="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-900">Lista de Clientes</h2>
       </div>
