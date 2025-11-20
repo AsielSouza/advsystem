@@ -4,15 +4,15 @@
       <!-- Cabeçalho da página -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
-          Cadastro de Clientes
+          {{ isEditMode ? 'Editar Cadastro de Clientes' : 'Cadastro de Clientes' }}
         </h1>
-        <p class="text-gray-600">
+        <p v-if="!isEditMode" class="text-gray-600">
           Preencha os dados do cliente conforme o tipo de pessoa
         </p>
       </div>
 
       <!-- Card de cadastro com abas -->
-      <RegisterCard />
+      <RegisterCard :cliente-id="clienteId" />
     </div>
 
     <!-- Toast de Notificação -->
@@ -27,8 +27,11 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import RegisterCard from '../components/RegisterCard.vue'
 import Toast from '../components/Toast.vue'
+
+const route = useRoute()
 
 // Define o layout padrão para esta página
 definePageMeta({
@@ -37,5 +40,14 @@ definePageMeta({
 
 // Composable para toast (será usado pelo RegisterCard)
 const toast = useToast()
+
+// Verifica se está em modo de edição (se tem ID na query)
+const clienteId = computed(() => {
+  return route.query.id || null
+})
+
+const isEditMode = computed(() => {
+  return !!clienteId.value
+})
 </script>
 

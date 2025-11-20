@@ -63,7 +63,7 @@ const modules = [
 
 const handleModuleClick = (moduleId) => {
   if (moduleId === 'modulo-1') {
-    router.push('/register-client')
+    router.push('/modulo-clientes')
   } else {
     // Lógica será implementada posteriormente para outros módulos
     console.log('Módulo clicado:', moduleId)
