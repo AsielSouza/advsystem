@@ -28,72 +28,32 @@
     </button>
 
     <!-- Modal de Configuração -->
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
+    <Modal
+      v-model="isOpen"
+      title="Quadro Societário"
+      size="md"
+      @close="closeConfig"
     >
-      <div
-        v-if="isOpen"
-        class="fixed inset-0 z-50 overflow-y-auto"
-        @click.self="closeConfig"
+      <p class="text-gray-600 mb-6">
+        Gerencie e visualize todos os sócios cadastrados no sistema
+      </p>
+      <Button
+        variant="primary"
+        full-width
+        @click="goToSocios"
       >
-        <!-- Overlay -->
-        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-
-        <!-- Modal -->
-        <div class="flex min-h-full items-center justify-center p-4">
-          <div
-            class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden transform transition-all"
-            @click.stop
-          >
-            <!-- Header do Modal -->
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 class="text-2xl font-bold text-gray-900">
-                Configurações
-              </h2>
-              <button
-                @click="closeConfig"
-                class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                aria-label="Fechar"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Conteúdo do Modal -->
-            <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <!-- Conteúdo será adicionado aqui -->
-              <p class="text-gray-500 text-center py-8">
-                Conteúdo de configuração será adicionado aqui
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
+        Acessar Quadro Societário
+      </Button>
+    </Modal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
+import Modal from './Modal.vue'
+import Button from './Button.vue'
 
+const router = useRouter()
 const isOpen = ref(false)
 
 const toggleConfig = () => {
@@ -104,19 +64,9 @@ const closeConfig = () => {
   isOpen.value = false
 }
 
-// Fechar ao pressionar ESC
-const handleEscape = (event) => {
-  if (event.key === 'Escape' && isOpen.value) {
-    closeConfig()
-  }
+const goToSocios = () => {
+  closeConfig()
+  router.push('/socios')
 }
-
-onMounted(() => {
-  document.addEventListener('keydown', handleEscape)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleEscape)
-})
 </script>
 
