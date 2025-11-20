@@ -3,6 +3,9 @@
     <div class="max-w-7xl mx-auto">
       <!-- Cabeçalho da página -->
       <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <ButtonBack @click="handleVoltar" />
+        </div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
           Clientes
         </h1>
@@ -24,6 +27,7 @@
 <script setup>
 import { ref } from 'vue'
 import TabelaClientes from '../components/TabelaClientes.vue'
+import ButtonBack from '../components/ButtonBack.vue'
 
 const router = useRouter()
 const supabase = useSupabaseClient()
@@ -34,6 +38,11 @@ const tabelaClientesRef = ref(null)
 definePageMeta({
   layout: 'default'
 })
+
+// Função para voltar ao módulo de clientes
+const handleVoltar = () => {
+  router.push('/modulo-clientes')
+}
 
 // Função para editar cliente
 const handleEdit = (cliente) => {

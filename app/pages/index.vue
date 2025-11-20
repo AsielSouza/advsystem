@@ -41,7 +41,7 @@ const router = useRouter()
 const modules = [
   {
     id: 'modulo-1',
-    title: 'Cadastro de Clientes',
+    title: 'Cadastro',
     description: ''
   },
   {

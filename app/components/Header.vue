@@ -1,5 +1,5 @@
 <template>
-  <header class="bg-white shadow-md border-b border-gray-200">
+  <header class="sticky top-0 z-50 bg-white shadow-md border-b border-gray-200">
     <div class="max-w-full mx-auto px-6 py-4">
       <div class="flex items-center justify-between">
         <!-- Logo/Home Button à esquerda -->
