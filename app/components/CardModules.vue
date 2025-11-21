@@ -1,7 +1,7 @@
 <template>
   <button
     @click="handleClick"
-    class="w-full h-32 lg:h-auto lg:aspect-square bg-white rounded-xl shadow-md hover:shadow-xl border border-gray-200 p-4 lg:p-6 transition-all duration-300 hover:scale-105 hover:border-primary-300 group flex flex-row lg:flex-col items-center justify-start lg:justify-center text-left lg:text-center"
+    class="w-full h-32 lg:h-auto lg:aspect-[2/1] bg-white rounded-xl shadow-md hover:shadow-xl border border-gray-200 p-4 lg:p-6 transition-all duration-300 hover:scale-105 hover:border-primary-300 group flex flex-row lg:flex-col items-center justify-start lg:justify-center text-left lg:text-center"
   >
     <!-- Ícone do módulo -->
     <div class="mb-0 lg:mb-4 mr-4 lg:mr-0 flex-shrink-0">

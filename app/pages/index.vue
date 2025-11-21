@@ -57,12 +57,12 @@ const modules = [
   {
     id: 'modulo-3',
     title: 'Módulo 3',
-    description: 'Descrição do terceiro módulo do sistema. Funcionalidades e recursos disponíveis.'
+    description: ''
   },
   {
     id: 'modulo-4',
     title: 'Módulo 4',
-    description: 'Descrição do quarto módulo do sistema. Funcionalidades e recursos disponíveis.'
+    description: ''
   }
 ]
 

@@ -52,8 +52,7 @@ definePageMeta({
 
 const handleModuleClick = (moduleId) => {
   if (moduleId === 'novo-honorario') {
-    // Lógica será implementada posteriormente
-    console.log('Novo honorário clicado')
+    router.push('/register-fees')
   }
 }
 </script>
