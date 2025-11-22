@@ -1,8 +1,24 @@
 <template>
   <div class="w-full">
-    <label class="block text-sm font-semibold text-gray-800 mb-3 tracking-tight">
-      Parcelas
-    </label>
+    <div class="flex items-center justify-between mb-3">
+      <label class="block text-sm font-semibold text-gray-800 tracking-tight">
+        Parcelas
+      </label>
+      <button
+        type="button"
+        @click="rebalancearValores"
+        class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-all duration-200 ease-in-out hover:shadow-sm"
+        title="Rebalancear valores das parcelas"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-ccw">
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+          <path d="M16 16h5v5"/>
+        </svg>
+        <span>Rebalancear</span>
+      </button>
+    </div>
     
     <div v-if="parcelas.length === 0" class="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center">
       <p class="text-sm text-gray-500">
@@ -225,6 +241,53 @@ const initializeParcelas = () => {
   }
 
   parcelas.value = novasParcelas
+  emitChange()
+}
+
+// Função para rebalancear todos os valores das parcelas
+const rebalancearValores = () => {
+  const valorTotalNum = parseFloat(props.valorTotal) || 0
+  
+  if (valorTotalNum <= 0 || parcelas.value.length === 0) {
+    return
+  }
+  
+  // Conta quantas parcelas não estão pagas
+  const parcelasNaoPagas = parcelas.value.filter(p => !p.pago)
+  const quantidadeParcelasNaoPagas = parcelasNaoPagas.length
+  
+  if (quantidadeParcelasNaoPagas === 0) {
+    return
+  }
+  
+  // Calcula o valor total já pago
+  let valorTotalPago = 0
+  parcelas.value.forEach(parcela => {
+    if (parcela.pago) {
+      valorTotalPago += parseFloat(parcela.valor) || 0
+    }
+  })
+  
+  // Calcula o valor restante para distribuir
+  const valorRestante = valorTotalNum - valorTotalPago
+  
+  if (valorRestante <= 0) {
+    return
+  }
+  
+  // Distribui o valor restante igualmente entre as parcelas não pagas
+  const valorPorParcela = valorRestante / quantidadeParcelasNaoPagas
+  
+  // Atualiza todas as parcelas não pagas
+  parcelas.value.forEach((parcela, index) => {
+    if (!parcela.pago) {
+      parcelas.value[index].valor = valorPorParcela
+      parcelas.value[index].valorFormatted = formatCurrency(valorPorParcela)
+    }
+  })
+  
+  // Valida e emite mudanças
+  validateParcelas()
   emitChange()
 }
 
