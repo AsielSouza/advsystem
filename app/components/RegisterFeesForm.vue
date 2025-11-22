@@ -162,13 +162,13 @@
         :max-date="maxDate"
       />
 
-      <!-- Descrição -->
+      <!-- Histórico -->
       <div class="w-full">
         <label
           for="descricao"
           class="block text-sm font-semibold text-gray-800 mb-2.5 tracking-tight"
         >
-          Descrição
+          Histórico
         </label>
         <textarea
           id="descricao"
@@ -215,16 +215,6 @@
         @validation="handleParcelasValidation"
       />
 
-      <!-- Status -->
-      <Dropdown
-        v-model="formData.status"
-        label="Status"
-        :options="statusOptions"
-        placeholder="Selecione o status"
-        required
-        :error="errors.status"
-      />
-
       <!-- Dividir entre Sócios -->
       <Toggle
         v-model="formData.dividir_entre_socios"
@@ -247,7 +237,8 @@
         v-model="formData.advogado_responsavel_id"
         label="Advogado Responsável"
         :options="advogadosOptions"
-        placeholder="Selecione o advogado responsável (opcional)"
+        placeholder="Selecione o advogado responsável"
+        required
         :error="errors.advogado_responsavel_id"
       />
 
@@ -316,8 +307,7 @@ const parteOptions = [
 
 const formaPagamentoOptions = [
   { value: 'avista', label: 'À Vista' },
-  { value: 'parcelado', label: 'Parcelado' },
-  { value: 'percentual_sucesso', label: 'Percentual sobre Sucesso' }
+  { value: 'parcelado', label: 'Parcelado' }
 ]
 
 const statusOptions = [
@@ -375,15 +365,12 @@ const filteredClientes = computed(() => {
 
 // Opções de advogados para o dropdown
 const advogadosOptions = computed(() => {
-  return [
-    { value: '', label: 'Nenhum (opcional)' },
-    ...advogados.value
-      .filter(advogado => advogado.ativo !== false) // Filtra apenas advogados ativos
-      .map(advogado => ({
-        value: advogado.id,
-        label: `${advogado.nome}${advogado.oab_numero ? ` - OAB ${advogado.oab_numero}/${advogado.oab_uf}` : ''}`
-      }))
-  ]
+  return advogados.value
+    .filter(advogado => advogado.ativo !== false) // Filtra apenas advogados ativos
+    .map(advogado => ({
+      value: advogado.id,
+      label: `${advogado.nome}${advogado.oab_numero ? ` - OAB ${advogado.oab_numero}/${advogado.oab_uf}` : ''}`
+    }))
 })
 
 // Data máxima (hoje) - formato YYYY-MM-DD
@@ -586,6 +573,12 @@ const validate = () => {
       errors.advogados_total = 'Selecione pelo menos um advogado para dividir o honorário'
       isValid = false
     }
+  } else {
+    // Validar advogado responsável (quando NÃO dividir entre sócios)
+    if (!formData.advogado_responsavel_id || formData.advogado_responsavel_id === '') {
+      errors.advogado_responsavel_id = 'Advogado responsável é obrigatório'
+      isValid = false
+    }
   }
 
   // Validar valor total
@@ -634,12 +627,6 @@ const validate = () => {
         }
       }
     }
-  }
-
-  // Validar status
-  if (!formData.status) {
-    errors.status = 'Status é obrigatório'
-    isValid = false
   }
 
   return isValid
@@ -752,6 +739,13 @@ const handleFormaPagamentoChange = () => {
     parcelasData.value = []
     parcelasErrors.value = {}
   }
+  
+  // Define o status automaticamente baseado na forma de pagamento
+  if (formData.forma_pagamento === 'parcelado') {
+    formData.status = 'pendente'
+  } else if (formData.forma_pagamento === 'avista') {
+    formData.status = 'pago'
+  }
 }
 
 // Handler para mudança no número de parcelas
@@ -775,6 +769,14 @@ const handleSubmit = async () => {
   isSubmitting.value = true
 
   try {
+    // Define o status automaticamente baseado na forma de pagamento
+    let statusAutomatico = formData.status
+    if (formData.forma_pagamento === 'parcelado') {
+      statusAutomatico = 'pendente'
+    } else if (formData.forma_pagamento === 'avista') {
+      statusAutomatico = 'pago'
+    }
+    
     // Prepara os dados para salvar
     const dataToSave = {
       numero_processo: formData.numero_processo.trim(),
@@ -785,7 +787,7 @@ const handleSubmit = async () => {
       descricao: formData.descricao.trim() || null,
       forma_pagamento: formData.forma_pagamento,
       numero_parcelas: formData.numero_parcelas ? parseInt(formData.numero_parcelas) : null,
-      status: formData.status,
+      status: statusAutomatico,
       dividir_entre_socios: formData.dividir_entre_socios,
       advogado_responsavel_id: formData.dividir_entre_socios ? null : (formData.advogado_responsavel_id || null),
       updated_at: new Date().toISOString()
@@ -838,17 +840,35 @@ const handleSubmit = async () => {
       honorarioId = data[0].id
     }
 
-    // Salva parcelas se forma de pagamento for parcelado
-    if (formData.forma_pagamento === 'parcelado' && parcelasData.value.length > 0 && honorarioId) {
+    // Salva movimentações financeiras (sempre, independente da forma de pagamento)
+    if (honorarioId) {
       try {
         await saveParcelas(honorarioId)
       } catch (parcelasError) {
-        console.error('Erro ao salvar parcelas:', parcelasError)
-        toast.showError('Honorário salvo, mas houve erro ao salvar parcelas.', 5000)
+        console.error('Erro ao salvar movimentações financeiras:', parcelasError)
+        toast.showError('Honorário salvo, mas houve erro ao salvar movimentações financeiras.', 5000)
       }
     }
 
-    // TODO: Implementar salvamento de advogados na tabela honorario_socios quando a tabela for recriada
+    // Salva divisão entre sócios se dividir_entre_socios for true
+    if (formData.dividir_entre_socios && advogadosPercentuais.value.length > 0 && honorarioId) {
+      try {
+        await saveAdvogadosSocios(honorarioId)
+      } catch (sociosError) {
+        console.error('Erro ao salvar divisão entre sócios:', sociosError)
+        toast.showError('Honorário salvo, mas houve erro ao salvar divisão entre sócios.', 5000)
+      }
+    }
+
+    // Salva histórico se houver descrição
+    if (formData.descricao && formData.descricao.trim() !== '' && honorarioId) {
+      try {
+        await saveHistorico(honorarioId)
+      } catch (historicoError) {
+        console.error('Erro ao salvar histórico:', historicoError)
+        // Não mostra erro para histórico, pois é opcional
+      }
+    }
 
     // Sucesso
     toast.success(`Honorário ${props.honorarioId ? 'atualizado' : 'cadastrado'} com sucesso!`, 3000)
@@ -871,13 +891,13 @@ const handleCancel = () => {
   emit('cancel')
 }
 
-// Função para salvar parcelas
+// Função para salvar movimentações financeiras (parcelas)
 const saveParcelas = async (honorarioId) => {
   try {
     // Primeiro, remove parcelas antigas (se estiver editando)
     if (props.honorarioId) {
       const { error: deleteError } = await supabase
-        .from('honorario_parcelas')
+        .from('honorarios_parcelas')
         .delete()
         .eq('honorario_id', honorarioId)
 
@@ -886,28 +906,64 @@ const saveParcelas = async (honorarioId) => {
       }
     }
 
-    // Prepara dados das parcelas para inserção
-    const parcelasToInsert = parcelasData.value.map(parcela => ({
-      honorario_id: honorarioId,
-      numero_parcela: parcela.numero_parcela,
-      valor: parseFloat(parcela.valor) || 0,
-      data_vencimento: parcela.data_vencimento,
-      pago: parcela.pago || false,
-      data_pagamento: parcela.data_pagamento || null,
-      updated_at: new Date().toISOString()
-    }))
+    // Busca o número do processo, forma de pagamento e valor total do honorário
+    const { data: honorarioData, error: honorarioError } = await supabase
+      .from('honorarios')
+      .select('numero_processo, forma_pagamento, valor_total, data_contratacao')
+      .eq('id', honorarioId)
+      .single()
 
-    // Insere as parcelas
-    const { error: insertError } = await supabase
-      .from('honorario_parcelas')
-      .insert(parcelasToInsert)
+    if (honorarioError) {
+      console.error('Erro ao buscar dados do honorário:', honorarioError)
+      throw honorarioError
+    }
 
-    if (insertError) {
-      console.error('Erro ao salvar parcelas:', insertError)
-      throw insertError
+    let parcelasToInsert = []
+
+    // Se for "À Vista", cria uma única parcela Nº 01
+    if (honorarioData.forma_pagamento === 'avista') {
+      parcelasToInsert = [{
+        honorario_id: honorarioId,
+        numero_processo: honorarioData.numero_processo,
+        numero_da_parcela: 1,
+        valor_parcela: parseFloat(honorarioData.valor_total) || 0,
+        valor_pago_parcela: parseFloat(honorarioData.valor_total) || 0, // Totalmente pago
+        forma_pagamento: 'À Vista',
+        status: 'paga',
+        data_vencimento: honorarioData.data_contratacao || new Date().toISOString().split('T')[0],
+        data_pagamento: honorarioData.data_contratacao || new Date().toISOString().split('T')[0],
+        updated_at: new Date().toISOString()
+      }]
+    } 
+    // Se for "Parcelado", usa as parcelas do formulário
+    else if (honorarioData.forma_pagamento === 'parcelado' && parcelasData.value.length > 0) {
+      parcelasToInsert = parcelasData.value.map(parcela => ({
+        honorario_id: honorarioId,
+        numero_processo: honorarioData.numero_processo,
+        numero_da_parcela: parcela.numero_parcela,
+        valor_parcela: parseFloat(parcela.valor) || 0,
+        valor_pago_parcela: parcela.pago ? parseFloat(parcela.valor) || 0 : 0,
+        forma_pagamento: 'Parcelado',
+        status: parcela.pago ? 'paga' : 'pendente',
+        data_vencimento: parcela.data_vencimento,
+        data_pagamento: parcela.pago ? (parcela.data_pagamento || new Date().toISOString().split('T')[0]) : null,
+        updated_at: new Date().toISOString()
+      }))
+    }
+
+    // Insere as parcelas (só se houver dados para inserir)
+    if (parcelasToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from('honorarios_parcelas')
+        .insert(parcelasToInsert)
+
+      if (insertError) {
+        console.error('Erro ao salvar movimentações financeiras:', insertError)
+        throw insertError
+      }
     }
   } catch (error) {
-    console.error('Erro inesperado ao salvar parcelas:', error)
+    console.error('Erro inesperado ao salvar movimentações financeiras:', error)
     throw error
   }
 }
@@ -916,10 +972,10 @@ const saveParcelas = async (honorarioId) => {
 const loadParcelas = async (honorarioId) => {
   try {
     const { data, error } = await supabase
-      .from('honorario_parcelas')
+      .from('honorarios_parcelas')
       .select('*')
       .eq('honorario_id', honorarioId)
-      .order('numero_parcela', { ascending: true })
+      .order('numero_da_parcela', { ascending: true })
 
     if (error) {
       console.error('Erro ao carregar parcelas:', error)
@@ -929,10 +985,10 @@ const loadParcelas = async (honorarioId) => {
     if (data && data.length > 0) {
       parcelasData.value = data.map(parcela => ({
         id: parcela.id,
-        numero_parcela: parcela.numero_parcela,
-        valor: parseFloat(parcela.valor) || 0,
+        numero_parcela: parcela.numero_da_parcela,
+        valor: parseFloat(parcela.valor_parcela) || 0,
         data_vencimento: parcela.data_vencimento,
-        pago: parcela.pago || false,
+        pago: parcela.status === 'paga' || false,
         data_pagamento: parcela.data_pagamento || null
       }))
     }
@@ -941,7 +997,141 @@ const loadParcelas = async (honorarioId) => {
   }
 }
 
-// TODO: Implementar função para carregar advogados relacionados quando a tabela honorario_socios for recriada
+// Função para salvar divisão entre sócios
+const saveAdvogadosSocios = async (honorarioId) => {
+  try {
+    // Primeiro, remove registros antigos (se estiver editando)
+    if (props.honorarioId) {
+      const { error: deleteError } = await supabase
+        .from('honorarios_socios')
+        .delete()
+        .eq('honorario_id', honorarioId)
+
+      if (deleteError) {
+        console.error('Erro ao remover divisão antiga:', deleteError)
+        throw deleteError
+      }
+    }
+
+    // Busca o número do processo do honorário
+    const { data: honorarioData, error: honorarioError } = await supabase
+      .from('honorarios')
+      .select('numero_processo')
+      .eq('id', honorarioId)
+      .single()
+
+    if (honorarioError) {
+      console.error('Erro ao buscar número do processo:', honorarioError)
+      throw honorarioError
+    }
+
+    // Prepara dados dos advogados para inserção
+    const sociosToInsert = advogadosPercentuais.value.map(advogado => {
+      // Busca o nome do advogado
+      const advogadoInfo = advogados.value.find(a => a.id === advogado.id)
+      
+      return {
+        honorario_id: honorarioId,
+        numero_processo: honorarioData.numero_processo,
+        id_advogado: advogado.id,
+        nome_advogado: advogadoInfo?.nome || advogado.nome || '',
+        percentual_valor: parseFloat(advogado.percentual) || 0,
+        updated_at: new Date().toISOString()
+      }
+    })
+
+    // Insere os sócios
+    const { error: insertError } = await supabase
+      .from('honorarios_socios')
+      .insert(sociosToInsert)
+
+    if (insertError) {
+      console.error('Erro ao salvar divisão entre sócios:', insertError)
+      throw insertError
+    }
+  } catch (error) {
+    console.error('Erro inesperado ao salvar divisão entre sócios:', error)
+    throw error
+  }
+}
+
+// Função para salvar histórico
+const saveHistorico = async (honorarioId) => {
+  try {
+    // Busca o número do processo do honorário
+    const { data: honorarioData, error: honorarioError } = await supabase
+      .from('honorarios')
+      .select('numero_processo')
+      .eq('id', honorarioId)
+      .single()
+
+    if (honorarioError) {
+      console.error('Erro ao buscar número do processo:', honorarioError)
+      return // Não lança erro, pois histórico é opcional
+    }
+
+    // Verifica se já existe um histórico para este honorário (mais recente)
+    const { data: historicosExistentes, error: checkError } = await supabase
+      .from('honorarios_historico')
+      .select('id, historico')
+      .eq('honorario_id', honorarioId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    // Se já existe e o texto é o mesmo, não cria novo registro
+    if (!checkError && historicosExistentes && historicosExistentes.length > 0) {
+      const historicoMaisRecente = historicosExistentes[0]
+      if (historicoMaisRecente.historico === formData.descricao.trim()) {
+        // Histórico já existe e é o mesmo, não precisa criar novo
+        return
+      }
+    }
+
+    // Insere novo registro de histórico
+    const { error: insertError } = await supabase
+      .from('honorarios_historico')
+      .insert([{
+        honorario_id: honorarioId,
+        numero_processo: honorarioData.numero_processo,
+        historico: formData.descricao.trim(),
+        updated_at: new Date().toISOString()
+      }])
+
+    if (insertError) {
+      console.error('Erro ao salvar histórico:', insertError)
+      // Não lança erro, pois histórico é opcional
+    }
+  } catch (error) {
+    console.error('Erro inesperado ao salvar histórico:', error)
+    // Não lança erro, pois histórico é opcional
+  }
+}
+
+// Função para carregar advogados relacionados
+const loadAdvogadosSocios = async (honorarioId) => {
+  try {
+    const { data, error } = await supabase
+      .from('honorarios_socios')
+      .select('*')
+      .eq('honorario_id', honorarioId)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Erro ao carregar divisão entre sócios:', error)
+      return
+    }
+
+    if (data && data.length > 0) {
+      advogadosPercentuais.value = data.map(socio => ({
+        id: socio.id_advogado,
+        nome: socio.nome_advogado,
+        percentual: parseFloat(socio.percentual_valor) || 0
+      }))
+    }
+  } catch (error) {
+    console.error('Erro inesperado ao carregar divisão entre sócios:', error)
+  }
+}
 
 // Watch clienteSearch para limpar seleção quando limpar o campo
 watch(clienteSearch, (newValue) => {
@@ -1015,24 +1205,28 @@ const loadHonorario = async () => {
       formData.descricao = data.descricao || ''
       formData.forma_pagamento = data.forma_pagamento || ''
       formData.numero_parcelas = data.numero_parcelas || null
-      formData.status = data.status || 'pendente'
+      // Define o status automaticamente baseado na forma de pagamento
+      if (formData.forma_pagamento === 'parcelado') {
+        formData.status = 'pendente'
+      } else if (formData.forma_pagamento === 'avista') {
+        formData.status = 'pago'
+      } else {
+        formData.status = data.status || 'pendente'
+      }
       formData.dividir_entre_socios = data.dividir_entre_socios !== undefined ? data.dividir_entre_socios : true
       
       // Carrega advogado responsável ou lista de advogados (dependendo do modo)
       if (formData.dividir_entre_socios) {
-        // TODO: Carregar advogados e percentuais da tabela relacionada quando implementada
-        // Por enquanto, inicializa vazio
-        advogadosPercentuais.value = []
+        // Carrega advogados e percentuais da tabela relacionada
+        await loadAdvogadosSocios(props.honorarioId)
       } else {
         formData.advogado_responsavel_id = data.advogado_responsavel_id || ''
       }
 
-      // Carrega parcelas se forma de pagamento for parcelado
-      if (formData.forma_pagamento === 'parcelado' && props.honorarioId) {
+      // Carrega movimentações financeiras (sempre, independente da forma de pagamento)
+      if (props.honorarioId) {
         await loadParcelas(props.honorarioId)
       }
-
-      // TODO: Carregar advogados relacionados quando a tabela honorario_socios for recriada
     }
   } catch (error) {
     console.error('Erro inesperado ao carregar honorário:', error)

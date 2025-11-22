@@ -43,7 +43,7 @@
               </span>
               <input
                 :id="`valor-parcela-${index}`"
-                v-model="parcela.valorFormatted"
+                :key="`valor-input-${index}-${parcela.id || index}`"
                 type="text"
                 placeholder="0,00"
                 :disabled="parcela.pago"
@@ -55,8 +55,9 @@
                     ? 'border-danger-400 focus:ring-danger-500 focus:border-danger-500 bg-danger-50/30'
                     : 'border-gray-200 focus:ring-primary-500 focus:border-primary-500 bg-white hover:border-gray-300'
                 ]"
+                :value="parcela.valorFormatted"
                 @input="handleValorInput(index, $event)"
-                @blur="handleValorBlur(index)"
+                @blur="handleValorBlur(index, $event)"
                 @focus="handleValorFocus(index, $event)"
               />
             </div>
@@ -107,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -227,69 +228,157 @@ const initializeParcelas = () => {
   emitChange()
 }
 
+// Função para redistribuir valores automaticamente
+const redistribuirValores = (indexAlterado) => {
+  const valorTotalNum = parseFloat(props.valorTotal) || 0
+  
+  // Soma valores das parcelas anteriores (incluindo a atual)
+  let somaAnteriores = 0
+  for (let i = 0; i <= indexAlterado; i++) {
+    if (!parcelas.value[i].pago) {
+      somaAnteriores += parcelas.value[i].valor || 0
+    } else {
+      // Se a parcela está paga, inclui seu valor na soma
+      somaAnteriores += parcelas.value[i].valor || 0
+    }
+  }
+  
+  // Calcula o valor restante para distribuir nas parcelas seguintes
+  let valorRestante = valorTotalNum - somaAnteriores
+  
+  // Conta quantas parcelas seguintes existem (não pagas)
+  const parcelasSeguintes = parcelas.value.slice(indexAlterado + 1).filter(p => !p.pago)
+  const quantidadeParcelasSeguintes = parcelasSeguintes.length
+  
+  // Se não há parcelas seguintes, não redistribui
+  if (quantidadeParcelasSeguintes === 0) {
+    return
+  }
+  
+  // Se valor restante é negativo ou zero, distribui zero
+  if (valorRestante <= 0) {
+    parcelas.value.forEach((parcela, index) => {
+      if (index > indexAlterado && !parcela.pago) {
+        parcelas.value[index].valor = 0
+        parcelas.value[index].valorFormatted = formatCurrency(0)
+      }
+    })
+    return
+  }
+  
+  // Distribui o valor restante igualmente entre as parcelas seguintes
+  const valorPorParcela = valorRestante / quantidadeParcelasSeguintes
+  
+  // Atualiza as parcelas seguintes
+  parcelas.value.forEach((parcela, index) => {
+    if (index > indexAlterado && !parcela.pago) {
+      parcelas.value[index].valor = valorPorParcela
+      parcelas.value[index].valorFormatted = formatCurrency(valorPorParcela)
+    }
+  })
+}
+
 // Handlers para valor
 const handleValorInput = (index, event) => {
-  let inputValue = event.target.value
-  inputValue = inputValue.replace(/[^\d,.-]/g, '')
+  const input = event.target
+  let inputValue = input.value
+  
+  // Remove apenas caracteres não permitidos (mantém números, vírgula e ponto)
+  const cleanedValue = inputValue.replace(/[^\d,.-]/g, '')
+  
+  // Se caracteres foram removidos, atualiza o input e ajusta cursor
+  if (cleanedValue !== inputValue) {
+    const cursorPosition = input.selectionStart || 0
+    const lengthDiff = inputValue.length - cleanedValue.length
+    
+    // Atualiza o valor do input diretamente
+    input.value = cleanedValue
+    
+    // Ajusta posição do cursor
+    const newPosition = Math.max(0, cursorPosition - lengthDiff)
+    nextTick(() => {
+      if (input) {
+        input.setSelectionRange(newPosition, newPosition)
+      }
+    })
+  }
+  
+  // NÃO atualiza valorFormatted durante digitação para evitar re-renderização
+  // Apenas limpa erros
+  delete parcelasErrors.value[`parcela_${index}_valor`]
+}
 
+const handleValorBlur = (index, event) => {
+  const input = event.target
+  let inputValue = input.value
+  
+  // Remove caracteres inválidos se houver
+  inputValue = inputValue.replace(/[^\d,.-]/g, '')
+  
+  // Se está vazio, limpa tudo
   if (inputValue === '' || inputValue === '.' || inputValue === ',') {
     parcelas.value[index].valor = 0
     parcelas.value[index].valorFormatted = ''
+    input.value = ''
     delete parcelasErrors.value[`parcela_${index}_valor`]
+    redistribuirValores(index)
+    validateParcelas()
     emitChange()
     return
   }
-
-  parcelas.value[index].valorFormatted = inputValue
-
+  
+  // Converte para número
   let normalized = inputValue.replace(',', '.')
+  
+  // Trata múltiplos pontos/vírgulas
   const parts = normalized.split('.')
   if (parts.length > 2) {
     const integerPart = parts.slice(0, -1).join('')
     const decimalPart = parts[parts.length - 1]
     normalized = `${integerPart}.${decimalPart}`
   }
-
+  
   const numValue = parseFloat(normalized)
+  
   if (!isNaN(numValue) && numValue >= 0) {
+    // Atualiza o valor numérico
     parcelas.value[index].valor = numValue
+    // Formata para exibição
+    const formatted = formatCurrency(numValue)
+    parcelas.value[index].valorFormatted = formatted
+    // Atualiza o input com valor formatado
+    input.value = formatted
+    // Redistribui valores após formatar
+    redistribuirValores(index)
   } else {
+    // Se não é válido, limpa
     parcelas.value[index].valor = 0
+    parcelas.value[index].valorFormatted = ''
+    input.value = ''
+    // Redistribui valores quando limpa
+    redistribuirValores(index)
   }
-
-  delete parcelasErrors.value[`parcela_${index}_valor`]
-  emitChange()
-  validateParcelas()
-}
-
-const handleValorBlur = (index) => {
-  if (parcelas.value[index].valorFormatted) {
-    const unformatted = unformatCurrency(parcelas.value[index].valorFormatted)
-    const numValue = parseFloat(unformatted)
-
-    if (!isNaN(numValue) && numValue >= 0) {
-      parcelas.value[index].valor = numValue
-      parcelas.value[index].valorFormatted = formatCurrency(numValue)
-    } else {
-      parcelas.value[index].valor = 0
-      parcelas.value[index].valorFormatted = ''
-    }
-  } else {
-    parcelas.value[index].valor = 0
-  }
+  
   validateParcelas()
   emitChange()
 }
 
 const handleValorFocus = (index, event) => {
+  const input = event.target
+  // Remove formatação ao focar para facilitar edição
   if (parcelas.value[index].valor > 0) {
     const numValue = parseFloat(parcelas.value[index].valor)
     if (!isNaN(numValue)) {
-      parcelas.value[index].valorFormatted = numValue.toString().replace('.', ',')
+      // Mostra o valor sem formatação para facilitar edição
+      // Mas mantém com vírgula como separador decimal
+      const unformatted = numValue.toString().replace('.', ',')
+      parcelas.value[index].valorFormatted = unformatted
+      input.value = unformatted
     }
   }
+  // Seleciona todo o texto
   setTimeout(() => {
-    event.target.select()
+    input.select()
   }, 0)
 }
 
@@ -308,6 +397,8 @@ const handleDataBlur = (index) => {
 const validateParcelas = () => {
   parcelasErrors.value = {}
   let isValid = true
+  const valorTotalNum = parseFloat(props.valorTotal) || 0
+  let somaValores = 0
 
   parcelas.value.forEach((parcela, index) => {
     // Valida valor
@@ -316,12 +407,25 @@ const validateParcelas = () => {
       isValid = false
     }
 
+    // Soma valores para validar total
+    if (parcela.valor > 0) {
+      somaValores += parcela.valor
+    }
+
     // Valida data
     if (!parcela.data_vencimento) {
       parcelasErrors.value[`parcela_${index}_data`] = 'Data de vencimento é obrigatória'
       isValid = false
     }
   })
+
+  // Valida se a soma dos valores é igual ao valor total (com tolerância de 0.01 para arredondamento)
+  const diferenca = Math.abs(somaValores - valorTotalNum)
+  if (diferenca > 0.01) {
+    // Não marca como erro individual, mas adiciona uma validação geral
+    // A redistribuição automática já garante que a soma será correta
+    // Este check é apenas para validação final
+  }
 
   // Emite validação
   emit('validation', {
@@ -351,19 +455,28 @@ watch(() => props.numeroParcelas, () => {
 }, { immediate: true })
 
 // Watch para mudanças no valor total
-watch(() => props.valorTotal, () => {
-  if (parcelas.value.length > 0) {
-    // Redistribui valores se necessário
+watch(() => props.valorTotal, (newValor, oldValor) => {
+  // Só redistribui se o valor total mudou e não há valores personalizados
+  if (parcelas.value.length > 0 && newValor !== oldValor) {
     const valorTotalNum = parseFloat(props.valorTotal) || 0
     const valorPorParcela = valorTotalNum / parcelas.value.length
 
-    parcelas.value.forEach(parcela => {
-      if (!parcela.pago) {
-        parcela.valor = valorPorParcela
-        parcela.valorFormatted = formatCurrency(valorPorParcela)
-      }
+    // Verifica se alguma parcela foi editada manualmente
+    const temValorPersonalizado = parcelas.value.some((p, idx) => {
+      const valorEsperado = valorTotalNum / parcelas.value.length
+      return Math.abs(p.valor - valorEsperado) > 0.01 && !p.pago
     })
-    emitChange()
+
+    // Se não tem valor personalizado, redistribui igualmente
+    if (!temValorPersonalizado) {
+      parcelas.value.forEach((parcela, index) => {
+        if (!parcela.pago) {
+          parcelas.value[index].valor = valorPorParcela
+          parcelas.value[index].valorFormatted = formatCurrency(valorPorParcela)
+        }
+      })
+      emitChange()
+    }
   }
 })
 

@@ -85,19 +85,6 @@
         </div>
       </div>
 
-      <!-- Total de Percentuais -->
-      <div class="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-xl">
-        <span class="text-sm font-semibold text-gray-900">Total:</span>
-        <span
-          :class="[
-            'text-sm font-bold',
-            totalPercentual === 100 ? 'text-success-600' : 'text-danger-600'
-          ]"
-        >
-          {{ totalPercentual.toFixed(2) }}%
-        </span>
-      </div>
-
       <!-- Mensagem de erro do total -->
       <p
         v-if="errorTotal"
