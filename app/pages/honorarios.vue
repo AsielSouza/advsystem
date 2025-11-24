@@ -13,6 +13,20 @@
 
       <!-- Grid de módulos -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
+        <!-- Dashboard de Honorários -->
+        <CardModules
+          title="Dashboard de Honorários"
+          description="Visualize e gerencie toda a movimentação dos honorários"
+          module-id="dashboard-fees"
+          @click="handleModuleClick"
+        >
+          <template #icon>
+            <svg class="w-6 h-6 lg:w-8 lg:h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </template>
+        </CardModules>
+
         <!-- Novo honorário -->
         <CardModules
           title="Novo honorário"
@@ -51,7 +65,9 @@ definePageMeta({
 })
 
 const handleModuleClick = (moduleId) => {
-  if (moduleId === 'novo-honorario') {
+  if (moduleId === 'dashboard-fees') {
+    router.push('/dashboard-fees')
+  } else if (moduleId === 'novo-honorario') {
     router.push('/register-fees')
   }
 }

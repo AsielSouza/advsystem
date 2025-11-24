@@ -1,5 +1,5 @@
 <template>
-  <div class="relative">
+  <div class="relative" ref="dropdownRef">
     <!-- Botão do ícone de engrenagem -->
     <button
       @click="toggleConfig"
@@ -27,34 +27,41 @@
       </svg>
     </button>
 
-    <!-- Modal de Configuração -->
-    <Modal
-      v-model="isOpen"
-      title="Quadro Societário"
-      size="md"
-      @close="closeConfig"
+    <!-- Dropdown de Configuração -->
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 scale-95 translate-y-1"
+      enter-to-class="opacity-100 scale-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 scale-100 translate-y-0"
+      leave-to-class="opacity-0 scale-95 translate-y-1"
     >
-      <p class="text-gray-600 mb-6">
-        Gerencie e visualize todos os sócios cadastrados no sistema
-      </p>
-      <Button
-        variant="primary"
-        full-width
-        @click="goToSocios"
+      <div
+        v-if="isOpen"
+        class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
       >
-        Acessar Quadro Societário
-      </Button>
-    </Modal>
+        <div class="px-4 py-2 border-b border-gray-200">
+          <h3 class="text-sm font-semibold text-gray-900">Configurações</h3>
+        </div>
+        <div class="py-1">
+          <button
+            @click="goToSocios"
+            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Quadro Societário
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import Modal from './Modal.vue'
-import Button from './Button.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const router = useRouter()
 const isOpen = ref(false)
+const dropdownRef = ref(null)
 
 const toggleConfig = () => {
   isOpen.value = !isOpen.value
@@ -68,5 +75,29 @@ const goToSocios = () => {
   closeConfig()
   router.push('/socios')
 }
+
+// Fechar dropdown ao clicar fora
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    closeConfig()
+  }
+}
+
+// Fechar ao pressionar ESC
+const handleEscape = (event) => {
+  if (event.key === 'Escape' && isOpen.value) {
+    closeConfig()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscape)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscape)
+})
 </script>
 
