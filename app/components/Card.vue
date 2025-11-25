@@ -66,7 +66,7 @@ const shadowClasses = {
 
 const cardClasses = computed(() => [
   'bg-white',
-  'rounded-lg',
+  'rounded-xl',
   'p-6',
   shadowClasses[props.shadow],
   props.hover ? 'hover:shadow-xl transition-shadow' : '',

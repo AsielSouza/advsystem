@@ -24,27 +24,40 @@
             <span
               :class="[
                 'px-2 py-1 rounded-full text-xs font-medium',
-                getStatusClass(honorario.status)
+                getStatusClass(honorario)
               ]"
             >
-              {{ formatStatus(honorario.status) }}
+              {{ formatStatus(honorario) }}
             </span>
           </div>
-          <div class="flex items-center gap-4 text-sm text-gray-600">
+          <div class="flex flex-col gap-2 text-sm text-gray-600">
             <!-- Advogado Responsável Único -->
-            <span v-if="honorario.advogado_responsavel && !honorario.dividir_entre_socios">
-              Advogado Responsável: {{ honorario.advogado_responsavel }}
-            </span>
-            <!-- Advogados Responsáveis (Sócios) -->
-            <span v-else-if="honorario.advogados_socios && honorario.advogados_socios.length > 0">
-              Advogados Responsáveis: {{ formatarAdvogadosSocios(honorario.advogados_socios) }}
-            </span>
-            <span v-else class="text-gray-400">
-              Nenhum advogado responsável definido
-            </span>
-            <span v-if="honorario.valor_total" class="font-semibold text-gray-900">
-              {{ formatCurrency(honorario.valor_total) }}
-            </span>
+            <div v-if="honorario.advogado_responsavel && !honorario.dividir_entre_socios" class="flex items-center gap-4">
+              <span>
+                Advogado Responsável: {{ honorario.advogado_responsavel }}
+              </span>
+              <span v-if="honorario.valor_total" class="font-semibold text-gray-900">
+                {{ formatCurrency(honorario.valor_total) }}
+              </span>
+            </div>
+            <!-- Advogados Responsáveis (Sócios) com Barra de Percentual -->
+            <div v-else-if="honorario.advogados_socios && honorario.advogados_socios.length > 0" class="space-y-2">
+              <div class="flex items-center gap-4">
+                <span class="text-xs font-medium text-gray-500 uppercase">Advogados Responsáveis:</span>
+                <span v-if="honorario.valor_total" class="font-semibold text-gray-900">
+                  {{ formatCurrency(honorario.valor_total) }}
+                </span>
+              </div>
+              <BarraPercentual :socios="honorario.advogados_socios" />
+            </div>
+            <div v-else class="flex items-center gap-4">
+              <span class="text-gray-400">
+                Nenhum advogado responsável definido
+              </span>
+              <span v-if="honorario.valor_total" class="font-semibold text-gray-900">
+                {{ formatCurrency(honorario.valor_total) }}
+              </span>
+            </div>
           </div>
         </div>
         <!-- Ícone de expansão -->
@@ -72,74 +85,10 @@
         leave-from-class="opacity-100 max-h-screen"
         leave-to-class="opacity-0 max-h-0"
       >
-        <div
+        <InfoProcesso
           v-if="expandedHonorarios.includes(honorario.id)"
-          class="border-t border-gray-200 overflow-hidden"
-        >
-          <div class="p-6 space-y-6">
-            <!-- Informações Principais -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <p class="text-xs font-medium text-gray-500 uppercase mb-1">Cliente</p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ honorario.cliente_nome || 'Não informado' }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 uppercase mb-1">Valor Total</p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ formatCurrency(honorario.valor_total) }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 uppercase mb-1">Forma de Pagamento</p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ formatFormaPagamento(honorario.forma_pagamento) }}
-                </p>
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 uppercase mb-1">Data de Contratação</p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ formatDate(honorario.data_contratacao) }}
-                </p>
-              </div>
-            </div>
-
-            <!-- Resumo de Parcelas -->
-            <div v-if="honorario.parcelas && honorario.parcelas.length > 0" class="border-t border-gray-200 pt-4">
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">Resumo de Parcelas</h4>
-              <div class="space-y-2">
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-gray-600">Total de parcelas:</span>
-                  <span class="font-semibold text-gray-900">{{ honorario.parcelas.length }}</span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-gray-600">Parcelas pagas:</span>
-                  <span class="font-semibold text-success-600">
-                    {{ getParcelasPagas(honorario.parcelas) }}
-                  </span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-gray-600">Parcelas pendentes:</span>
-                  <span class="font-semibold text-warning-600">
-                    {{ getParcelasPendentes(honorario.parcelas) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Botão de Ações -->
-            <div class="flex items-center gap-3 pt-4 border-t border-gray-200">
-              <Button
-                variant="primary"
-                size="sm"
-                @click="editarHonorario(honorario.id)"
-              >
-                Editar Honorário
-              </Button>
-            </div>
-          </div>
-        </div>
+          :honorario="honorario"
+        />
       </Transition>
     </div>
   </div>
@@ -147,7 +96,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import Button from './Button.vue'
+import BarraPercentual from './BarraPercentual.vue'
+import InfoProcesso from './InfoProcesso.vue'
+import { useHonorarioStatus } from '~/composables/useHonorarioStatus'
 
 const props = defineProps({
   honorarios: {
@@ -156,9 +107,8 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['editar'])
-
 const expandedHonorarios = ref([])
+const { formatStatus, getStatusClass } = useHonorarioStatus()
 
 const toggleHonorario = (honorarioId) => {
   const index = expandedHonorarios.value.indexOf(honorarioId)
@@ -179,58 +129,24 @@ const formatCurrency = (value) => {
     currency: 'BRL'
   }).format(numValue)
 }
-
-const formatDate = (date) => {
-  if (!date) return '-'
-  const d = new Date(date)
-  return d.toLocaleDateString('pt-BR')
-}
-
-const formatStatus = (status) => {
-  const statusMap = {
-    'pendente': 'Pendente',
-    'pago': 'Pago',
-    'cancelado': 'Cancelado',
-    'paga': 'Paga'
-  }
-  return statusMap[status] || status || 'Não definido'
-}
-
-const formatFormaPagamento = (forma) => {
-  const formasMap = {
-    'avista': 'À Vista',
-    'parcelado': 'Parcelado'
-  }
-  return formasMap[forma] || forma || 'Não informado'
-}
-
-const getStatusClass = (status) => {
-  const statusClasses = {
-    'pago': 'bg-green-100 text-green-800',
-    'paga': 'bg-green-100 text-green-800',
-    'pendente': 'bg-yellow-100 text-yellow-800',
-    'cancelado': 'bg-red-100 text-red-800'
-  }
-  return statusClasses[status] || 'bg-gray-100 text-gray-800'
-}
-
-const getParcelasPagas = (parcelas) => {
-  if (!parcelas || !Array.isArray(parcelas)) return 0
-  return parcelas.filter(p => p.status === 'paga' || p.status === 'pago').length
-}
-
-const getParcelasPendentes = (parcelas) => {
-  if (!parcelas || !Array.isArray(parcelas)) return 0
-  return parcelas.filter(p => p.status === 'pendente').length
-}
-
-const formatarAdvogadosSocios = (advogadosSocios) => {
-  if (!advogadosSocios || advogadosSocios.length === 0) return ''
-  return advogadosSocios.map(socio => `${socio.nome} [${socio.percentual}%]`).join(', ')
-}
-
-const editarHonorario = (id) => {
-  emit('editar', id)
-}
 </script>
+
+<style scoped>
+@keyframes piscar-vermelho {
+  0%, 100% {
+    background-color: rgb(254 226 226);
+    color: rgb(153 27 27);
+    opacity: 1;
+  }
+  50% {
+    background-color: rgb(239 68 68);
+    color: rgb(255 255 255);
+    opacity: 0.9;
+  }
+}
+
+.status-atraso-piscante {
+  animation: piscar-vermelho 1.5s ease-in-out infinite;
+}
+</style>
 
