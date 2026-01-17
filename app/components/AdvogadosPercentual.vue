@@ -136,7 +136,7 @@ const fetchAdvogadosSocios = async () => {
     const { data, error } = await supabase
       .from('advogados')
       .select('id, nome, oab_numero, oab_uf')
-      .eq('is_socio', true)
+      .eq('tipo_vinculo', 'socio')
       .eq('ativo', true)
       .order('nome', { ascending: true })
 

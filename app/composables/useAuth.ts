@@ -79,6 +79,20 @@ export const useAuth = () => {
           return { success: false, error: error.value }
         }
 
+        // Garante que o perfil existe (cria se não existir)
+        const displayName = data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'Usuário'
+        try {
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              display_name: displayName,
+              email: data.user.email
+            }, { onConflict: 'id' })
+        } catch {
+          // Ignora erros ao criar/atualizar perfil
+        }
+
         // Login bem-sucedido - redireciona para index
         await router.push('/')
         return { success: true, user: data.user }
@@ -195,24 +209,16 @@ export const useAuth = () => {
 
       if (data?.user) {
         // Cria o perfil na tabela profiles
-        const { error: profileError } = await (supabase
-          .from('profiles') as any)
-          .insert({
-            id: data.user.id,
-            display_name: cleanDisplayName,
-            email: cleanEmail
-          })
-
-        if (profileError) {
-          // Se falhar ao criar perfil, tenta atualizar se já existir
-          const { error: updateError } = await (supabase
-            .from('profiles') as any)
-            .update({ display_name: cleanDisplayName })
-            .eq('id', data.user.id)
-
-          if (updateError) {
-            console.error('Erro ao criar/atualizar perfil:', updateError)
-          }
+        try {
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              display_name: cleanDisplayName,
+              email: cleanEmail
+            }, { onConflict: 'id' })
+        } catch (profileError) {
+          console.error('Erro ao criar/atualizar perfil:', profileError)
         }
 
         isLoading.value = false

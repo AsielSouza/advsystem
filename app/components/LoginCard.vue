@@ -24,9 +24,8 @@
           :required="true"
         />
 
-        <Input
+        <InputPassword
           v-model="password"
-          type="password"
           label="Senha"
           placeholder="Digite sua senha"
           :required="true"
@@ -48,6 +47,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import Input from './Input.vue'
+import InputPassword from './InputPassword.vue'
 import Button from './Button.vue'
 
 const props = defineProps({

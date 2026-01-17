@@ -175,13 +175,14 @@ const obterNomeUsuario = async () => {
     }
 
     // Tenta buscar o display_name da tabela de perfis
-    const { data: profile, error: profileError } = await supabase
+    // Usa maybeSingle() para evitar erro 404 quando o perfil não existe
+    const { data: profile } = await supabase
       .from('profiles')
       .select('display_name')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (!profileError && profile?.display_name) {
+    if (profile?.display_name) {
       return profile.display_name
     }
 

@@ -1,4 +1,4 @@
-<template>
+ <template>
   <div class="h-full w-full bg-gradient-to-br from-primary-50 via-white to-primary-100/80 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
     <!-- Decorative elements -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import { watch, onMounted } from 'vue'
 import LoginCard from '../components/LoginCard.vue'
 
 // Define o layout específico para esta página
@@ -36,6 +37,26 @@ definePageMeta({
 // Composables (auto-importados pelo Nuxt)
 const auth = useAuth()
 const toast = useToast()
+const user = useSupabaseUser()
+
+// Verificar se usuário já está autenticado e redirecionar
+const checkAuthAndRedirect = () => {
+  if (user.value) {
+    navigateTo('/')
+  }
+}
+
+// Verificar ao montar o componente
+onMounted(() => {
+  checkAuthAndRedirect()
+})
+
+// Verificar quando o estado do usuário mudar
+watch(user, (newUser) => {
+  if (newUser) {
+    navigateTo('/')
+  }
+}, { immediate: true })
 
 // Handler de login
 const handleLogin = async (formData: { email: string; password: string }) => {

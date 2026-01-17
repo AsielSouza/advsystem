@@ -11,7 +11,7 @@
     <div class="relative">
       <input
         :id="inputId"
-        :type="inputType"
+        :type="showPassword ? 'text' : 'password'"
         :value="modelValue"
         :placeholder="placeholder"
         :disabled="disabled"
@@ -22,7 +22,6 @@
         @focus="$emit('focus', $event)"
       />
       <button
-        v-if="type === 'password'"
         type="button"
         :class="eyeButtonClasses"
         @click="togglePasswordVisibility"
@@ -93,11 +92,6 @@ const props = defineProps({
     type: [String, Number],
     default: ''
   },
-  type: {
-    type: String,
-    default: 'text',
-    validator: (value) => ['text', 'email', 'password', 'number', 'tel', 'url'].includes(value)
-  },
   label: {
     type: String,
     default: ''
@@ -155,17 +149,10 @@ const inputId = computed(() => {
   
   // Cria uma chave única baseada em props determinísticas
   // que são as mesmas no servidor e no cliente
-  const key = `${props.type || 'text'}-${props.label || ''}-${props.placeholder || ''}`
+  const key = `password-${props.label || ''}-${props.placeholder || ''}`
   const hash = hashString(key)
   
-  return `input-${hash}`
-})
-
-const inputType = computed(() => {
-  if (props.type === 'password') {
-    return showPassword.value ? 'text' : 'password'
-  }
-  return props.type
+  return `input-password-${hash}`
 })
 
 const togglePasswordVisibility = () => {
@@ -191,7 +178,7 @@ const inputClasses = computed(() => [
   'shadow-sm',
   'hover:shadow-md',
   'focus:shadow-lg',
-  props.type === 'password' ? 'pr-12' : '',
+  'pr-12',
   props.error
     ? 'border-danger-400 focus:ring-danger-500 focus:border-danger-500 bg-danger-50/30'
     : 'border-gray-200 focus:ring-primary-500 focus:border-primary-500 bg-white hover:border-gray-300',

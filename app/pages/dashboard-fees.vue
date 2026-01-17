@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import ButtonBack from '../components/ButtonBack.vue'
 import CampoPesquisa from '../components/CampoPesquisa.vue'
 import ListaHonorarios from '../components/ListaHonorarios.vue'
@@ -73,6 +73,21 @@ definePageMeta({
 const router = useRouter()
 const supabase = useSupabaseClient()
 const toast = useToast()
+const user = useSupabaseUser()
+
+// Verificar autenticação e redirecionar se necessário
+const checkAuthentication = async () => {
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  
+  if (!currentUser) {
+    console.warn('⚠️ Usuário não autenticado. Redirecionando para login...')
+    toast.showError('Você precisa estar autenticado para acessar esta página.', 3000)
+    await router.push('/login')
+    return false
+  }
+  
+  return true
+}
 
 // Estados
 const isLoading = ref(true)
@@ -103,46 +118,65 @@ const honorariosFiltrados = computed(() => {
 
 // Função para formatar honorários com dados relacionados
 const formatarHonorarios = (honorarios) => {
+  if (!honorarios || honorarios.length === 0) {
+    console.log('formatarHonorarios: Nenhum honorário para formatar')
+    return []
+  }
+  
+  console.log('formatarHonorarios: Formatando', honorarios.length, 'honorários')
+  
   return honorarios.map(honorario => {
-    // Buscar nome do cliente
-    let clienteNome = 'Não informado'
-    if (honorario.cliente_pessoa_fisica_id) {
-      const cliente = clientesPF.value.find(c => c.id === honorario.cliente_pessoa_fisica_id)
-      clienteNome = cliente?.nome_completo || 'Cliente não encontrado'
-    } else if (honorario.cliente_pessoa_juridica_id) {
-      const cliente = clientesPJ.value.find(c => c.id === honorario.cliente_pessoa_juridica_id)
-      clienteNome = cliente?.razao_social || 'Cliente não encontrado'
-    }
+    try {
+      // Buscar nome do cliente
+      let clienteNome = 'Não informado'
+      if (honorario.cliente_pessoa_fisica_id) {
+        const cliente = clientesPF.value.find(c => c.id === honorario.cliente_pessoa_fisica_id)
+        clienteNome = cliente?.nome_completo || 'Cliente não encontrado'
+      } else if (honorario.cliente_pessoa_juridica_id) {
+        const cliente = clientesPJ.value.find(c => c.id === honorario.cliente_pessoa_juridica_id)
+        clienteNome = cliente?.razao_social || 'Cliente não encontrado'
+      }
 
-    // Buscar parcelas do honorário
-    const parcelasHonorario = parcelas.value.filter(p => p.honorario_id === honorario.id)
-      .sort((a, b) => a.numero_da_parcela - b.numero_da_parcela)
+      // Buscar parcelas do honorário
+      const parcelasHonorario = parcelas.value.filter(p => p.honorario_id === honorario.id)
+        .sort((a, b) => a.numero_da_parcela - b.numero_da_parcela)
 
-    // Buscar informações de advogados
-    let advogadoResponsavel = null
-    let advogadosSocios = []
+      // Buscar informações de advogados
+      let advogadoResponsavel = null
+      let advogadosSocios = []
 
-    if (honorario.dividir_entre_socios) {
-      // Buscar sócios do honorário
-      const sociosHonorario = socios.value.filter(s => s.honorario_id === honorario.id)
-      advogadosSocios = sociosHonorario.map(socio => {
-        return {
-          nome: socio.nome_advogado,
-          percentual: socio.percentual_valor
-        }
-      })
-    } else if (honorario.advogado_responsavel_id) {
-      // Buscar advogado responsável único
-      const advogado = advogados.value.find(a => a.id === honorario.advogado_responsavel_id)
-      advogadoResponsavel = advogado?.nome || 'Advogado não encontrado'
-    }
+      if (honorario.dividir_entre_socios) {
+        // Buscar sócios do honorário
+        const sociosHonorario = socios.value.filter(s => s.honorario_id === honorario.id)
+        advogadosSocios = sociosHonorario.map(socio => {
+          return {
+            nome: socio.nome_advogado,
+            percentual: socio.percentual_valor
+          }
+        })
+      } else if (honorario.advogado_responsavel_id) {
+        // Buscar advogado responsável único
+        const advogado = advogados.value.find(a => a.id === honorario.advogado_responsavel_id)
+        advogadoResponsavel = advogado?.nome || 'Advogado não encontrado'
+      }
 
-    return {
-      ...honorario,
-      cliente_nome: clienteNome,
-      parcelas: parcelasHonorario,
-      advogado_responsavel: advogadoResponsavel,
-      advogados_socios: advogadosSocios
+      return {
+        ...honorario,
+        cliente_nome: clienteNome,
+        parcelas: parcelasHonorario,
+        advogado_responsavel: advogadoResponsavel,
+        advogados_socios: advogadosSocios
+      }
+    } catch (error) {
+      console.error('Erro ao formatar honorário:', honorario.id, error)
+      // Retorna o honorário mesmo com erro para não perder dados
+      return {
+        ...honorario,
+        cliente_nome: 'Erro ao carregar',
+        parcelas: [],
+        advogado_responsavel: null,
+        advogados_socios: []
+      }
     }
   })
 }
@@ -150,6 +184,16 @@ const formatarHonorarios = (honorarios) => {
 // Funções de busca
 const fetchHonorarios = async () => {
   try {
+    console.log('Iniciando busca de honorários...')
+    
+    // Verificar autenticação
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('Usuário autenticado:', user ? 'Sim' : 'Não')
+    if (user) {
+      console.log('ID do usuário:', user.id)
+      console.log('Email do usuário:', user.email)
+    }
+    
     const { data, error } = await supabase
       .from('honorarios')
       .select('*')
@@ -157,14 +201,34 @@ const fetchHonorarios = async () => {
 
     if (error) {
       console.error('Erro ao buscar honorários:', error)
-      toast.showError('Erro ao carregar honorários.', 5000)
+      console.error('Detalhes do erro:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      toast.showError(`Erro ao carregar honorários: ${error.message}`, 5000)
+      honorariosRaw.value = []
       return
     }
 
+    console.log('Resposta da query:', { data, error })
+    console.log('Quantidade de honorários retornados:', data?.length || 0)
     honorariosRaw.value = data || []
+    console.log('Honorários buscados do banco:', honorariosRaw.value.length)
+    
+    // Se não houver honorários, informar ao usuário
+    if (honorariosRaw.value.length === 0) {
+      console.warn('⚠️ Nenhum honorário encontrado no banco de dados.')
+      console.warn('Verifique:')
+      console.warn('1. Se há honorários cadastrados no sistema')
+      console.warn('2. Se há políticas RLS (Row Level Security) bloqueando a leitura')
+      console.warn('3. Se o usuário tem permissão para acessar a tabela honorarios')
+    }
   } catch (error) {
     console.error('Erro inesperado ao buscar honorários:', error)
     toast.showError('Erro inesperado ao carregar honorários.', 5000)
+    honorariosRaw.value = []
   }
 }
 
@@ -267,6 +331,12 @@ const handleEditar = (id) => {
 
 // Carrega dados ao montar
 onMounted(async () => {
+  // Verificar autenticação primeiro
+  const isAuthenticated = await checkAuthentication()
+  if (!isAuthenticated) {
+    return // Redirecionamento já foi feito
+  }
+  
   isLoading.value = true
   try {
     await Promise.all([
@@ -276,8 +346,23 @@ onMounted(async () => {
       fetchAdvogados(),
       fetchSocios()
     ])
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error)
+    toast.showError('Erro ao carregar dados do dashboard.', 5000)
   } finally {
     isLoading.value = false
   }
+  
+  // Debug: verificar se os dados foram carregados
+  console.log('Honorários carregados:', honorariosRaw.value.length)
+  console.log('Honorários formatados:', honorariosFiltrados.value.length)
 })
+
+// Observar mudanças no estado de autenticação
+watch(user, async (newUser) => {
+  if (!newUser) {
+    // Se o usuário fizer logout, redirecionar para login
+    await router.push('/login')
+  }
+}, { immediate: false })
 </script>

@@ -94,7 +94,27 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const toggleId = computed(() => props.id || `toggle-${Math.random().toString(36).substr(2, 9)}`)
+// Função para gerar hash simples e determinístico baseado em string
+const hashString = (str) => {
+  let hash = 0
+  if (str.length === 0) return '0'
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36)
+}
+
+// Gera ID determinístico baseado em propriedades do componente
+const toggleId = computed(() => {
+  if (props.id) return props.id
+  
+  const key = `toggle-${props.label || ''}-${props.description || ''}`
+  const hash = hashString(key)
+  
+  return `toggle-${hash}`
+})
 
 const handleToggle = () => {
   if (!props.disabled) {

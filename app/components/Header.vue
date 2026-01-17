@@ -49,35 +49,74 @@ const fetchUserDisplayName = async () => {
       return
     }
 
-    // Tenta buscar o display_name da tabela de perfis
-    // Primeiro, tenta buscar de uma tabela 'profiles'
-    const { data: profile, error: profileError } = await supabase
+    // Primeiro tenta usar user_metadata (mais rápido e não requer query)
+    if (user.user_metadata?.display_name) {
+      displayName.value = user.user_metadata.display_name
+      
+      // Cria/atualiza perfil em background (não bloqueia a UI)
+      try {
+        const profileData = {
+          id: user.id,
+          display_name: user.user_metadata.display_name,
+          email: user.email
+        }
+        // Usa upsert para inserir ou atualizar automaticamente
+        await supabase
+          .from('profiles')
+          .upsert(profileData, { onConflict: 'id' })
+      } catch {
+        // Ignora erros ao criar/atualizar perfil
+      }
+      
+      return
+    }
+
+    // Se não tiver user_metadata, tenta buscar na tabela profiles
+    const { data: profile } = await supabase
       .from('profiles')
       .select('display_name')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (!profileError && profile?.display_name) {
+    if (profile?.display_name) {
       displayName.value = profile.display_name
       return
     }
 
-    // Se não encontrar na tabela profiles, tenta user_metadata
-    if (user.user_metadata?.display_name) {
-      displayName.value = user.user_metadata.display_name
-      return
-    }
-
-    // Se não encontrar display_name, usa o email como fallback
+    // Se não encontrar, usa o email como fallback
     if (user.email) {
-      displayName.value = user.email.split('@')[0]
+      const emailName = user.email.split('@')[0]
+      displayName.value = emailName
+      
+      // Cria perfil em background com o nome do email
+      try {
+        const profileData = {
+          id: user.id,
+          display_name: emailName,
+          email: user.email
+        }
+        // Usa upsert para inserir ou atualizar automaticamente
+        await supabase
+          .from('profiles')
+          .upsert(profileData, { onConflict: 'id' })
+      } catch {
+        // Ignora erros ao criar/atualizar perfil
+      }
+      
       return
     }
 
     displayName.value = 'Usuário'
   } catch (error) {
-    console.error('Erro ao buscar display name:', error)
-    displayName.value = 'Usuário'
+    // Em caso de erro, usa fallback simples
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user?.user_metadata?.display_name) {
+      displayName.value = user.user_metadata.display_name
+    } else if (user?.email) {
+      displayName.value = user.email.split('@')[0]
+    } else {
+      displayName.value = 'Usuário'
+    }
   }
 }
 
