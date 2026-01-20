@@ -215,20 +215,45 @@
         @validation="handleParcelasValidation"
       />
 
-      <!-- Dividir entre Sócios -->
-      <Toggle
-        v-model="formData.dividir_entre_socios"
-        label="Dividir entre Sócios"
-        description="O honorário será dividido entre os sócios cadastrados"
-        @change="handleDividirSociosChange"
-      />
+      <!-- Seção: Definir Divisão de Honorários -->
+      <div class="w-full space-y-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+          Definir Divisão de Honorários
+        </h3>
+        
+        <div class="space-y-4">
+          <!-- Dividir entre Sócios -->
+          <Toggle
+            v-model="formData.dividir_entre_socios"
+            label="Dividir entre Sócios"
+            description="Dividir entre sócios"
+            @change="handleDividirSociosChange"
+          />
 
-      <!-- Advogados e Percentuais (quando dividir entre sócios) -->
+          <!-- Dividir entre Advogados Parceiros -->
+          <Toggle
+            v-model="formData.dividir_entre_advogados_parceiros"
+            label="Dividir entre Advogados Parceiros"
+            description="Dividir entre advogados parceiros"
+            @change="handleDividirAdvogadosParceirosChange"
+          />
+        </div>
+      </div>
+
+      <!-- Sócios (quando dividir entre sócios) -->
       <AdvogadosPercentual
         v-if="formData.dividir_entre_socios"
         v-model="advogadosPercentuais"
         :error="errors.advogados_total"
         @validation="handleAdvogadosValidation"
+      />
+
+      <!-- Advogados Parceiros (quando dividir entre advogados parceiros) -->
+      <AdvogadosParceirosPercentual
+        v-if="formData.dividir_entre_advogados_parceiros"
+        v-model="advogadosParceirosPercentuais"
+        :error="errors.advogados_parceiros_total"
+        @validation="handleAdvogadosParceirosValidation"
       />
 
       <!-- Advogado Responsável (quando NÃO dividir entre sócios) -->
@@ -270,6 +295,7 @@ import Dropdown from './Dropdown.vue'
 import Toggle from './Toggle.vue'
 import Button from './Button.vue'
 import AdvogadosPercentual from './AdvogadosPercentual.vue'
+import AdvogadosParceirosPercentual from './AdvogadosParceirosPercentual.vue'
 import Parcelamentos from './Parcelamentos.vue'
 
 const props = defineProps({
@@ -292,6 +318,8 @@ const showClienteResults = ref(false)
 const clienteSelecionado = ref(null)
 const advogadosPercentuais = ref([])
 const advogadosValidation = ref({ isValid: false, total: 0, errors: {} })
+const advogadosParceirosPercentuais = ref([])
+const advogadosParceirosValidation = ref({ isValid: false, total: 0, errors: {} })
 const valorTotalFormatted = ref('')
 const parcelasData = ref([])
 const parcelasValidation = ref({ isValid: false, errors: {} })
@@ -330,6 +358,7 @@ const formData = reactive({
   numero_parcelas: null,
   status: 'pendente',
   dividir_entre_socios: true,
+  dividir_entre_advogados_parceiros: false,
   advogado_responsavel_id: ''
 })
 
@@ -344,7 +373,9 @@ const errors = reactive({
   forma_pagamento: '',
   numero_parcelas: '',
   status: '',
-  advogado_responsavel_id: ''
+  advogado_responsavel_id: '',
+  advogados_total: '',
+  advogados_parceiros_total: ''
 })
 
 // Clientes filtrados por busca
@@ -517,10 +548,39 @@ const handleDividirSociosChange = (value) => {
     // Quando desativa, limpa os advogados e percentuais
     advogadosPercentuais.value = []
     errors.advogados_total = ''
+    
+    // Se ambos os toggles estiverem desativados, limpa o advogado responsável
+    if (!formData.dividir_entre_advogados_parceiros) {
+      formData.advogado_responsavel_id = ''
+      errors.advogado_responsavel_id = ''
+    }
   } else {
-    // Quando ativa, limpa o advogado responsável único
-    formData.advogado_responsavel_id = ''
-    errors.advogado_responsavel_id = ''
+    // Quando ativa, limpa o advogado responsável único (se ambos os toggles não estiverem ativos)
+    if (!formData.dividir_entre_advogados_parceiros) {
+      formData.advogado_responsavel_id = ''
+      errors.advogado_responsavel_id = ''
+    }
+  }
+}
+
+// Handler para mudança do toggle "Dividir entre Advogados Parceiros"
+const handleDividirAdvogadosParceirosChange = (value) => {
+  if (!value) {
+    // Quando desativa, limpa os advogados parceiros e percentuais
+    advogadosParceirosPercentuais.value = []
+    errors.advogados_parceiros_total = ''
+    
+    // Se ambos os toggles estiverem desativados, limpa o advogado responsável
+    if (!formData.dividir_entre_socios) {
+      formData.advogado_responsavel_id = ''
+      errors.advogado_responsavel_id = ''
+    }
+  } else {
+    // Quando ativa, limpa o advogado responsável único (se ambos os toggles não estiverem ativos)
+    if (!formData.dividir_entre_socios) {
+      formData.advogado_responsavel_id = ''
+      errors.advogado_responsavel_id = ''
+    }
   }
 }
 
@@ -532,6 +592,17 @@ const handleAdvogadosValidation = (validation) => {
     errors.advogados_total = validation.errors.total || 'A soma dos percentuais deve ser exatamente 100%'
   } else {
     errors.advogados_total = ''
+  }
+}
+
+// Handler para validação dos advogados parceiros
+const handleAdvogadosParceirosValidation = (validation) => {
+  advogadosParceirosValidation.value = validation
+  
+  if (!validation.isValid) {
+    errors.advogados_parceiros_total = validation.errors.total || 'A soma dos percentuais deve ser exatamente 100%'
+  } else {
+    errors.advogados_parceiros_total = ''
   }
 }
 
@@ -573,8 +644,21 @@ const validate = () => {
       errors.advogados_total = 'Selecione pelo menos um advogado para dividir o honorário'
       isValid = false
     }
-  } else {
-    // Validar advogado responsável (quando NÃO dividir entre sócios)
+  }
+
+  // Validar advogados parceiros e percentuais (se dividir entre advogados parceiros)
+  if (formData.dividir_entre_advogados_parceiros) {
+    if (!advogadosParceirosValidation.value.isValid) {
+      errors.advogados_parceiros_total = advogadosParceirosValidation.value.errors.total || 'A soma dos percentuais deve ser exatamente 100%'
+      isValid = false
+    } else if (advogadosParceirosPercentuais.value.length === 0) {
+      errors.advogados_parceiros_total = 'Selecione pelo menos um advogado parceiro para dividir o honorário'
+      isValid = false
+    }
+  }
+
+  // Validar advogado responsável (quando NÃO dividir entre sócios E NÃO dividir entre parceiros)
+  if (!formData.dividir_entre_socios && !formData.dividir_entre_advogados_parceiros) {
     if (!formData.advogado_responsavel_id || formData.advogado_responsavel_id === '') {
       errors.advogado_responsavel_id = 'Advogado responsável é obrigatório'
       isValid = false
@@ -1214,6 +1298,7 @@ const loadHonorario = async () => {
         formData.status = data.status || 'pendente'
       }
       formData.dividir_entre_socios = data.dividir_entre_socios !== undefined ? data.dividir_entre_socios : true
+      formData.dividir_entre_advogados_parceiros = data.dividir_entre_advogados_parceiros !== undefined ? data.dividir_entre_advogados_parceiros : false
       
       // Carrega advogado responsável ou lista de advogados (dependendo do modo)
       if (formData.dividir_entre_socios) {

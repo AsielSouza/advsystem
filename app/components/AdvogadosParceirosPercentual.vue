@@ -1,14 +1,14 @@
 <template>
   <div class="w-full">
     <label class="block text-sm font-semibold text-gray-800 mb-2.5 tracking-tight">
-      Sócios
+      Advogados Parceiros
       <span class="text-danger-500 ml-0.5">*</span>
     </label>
 
-    <!-- Lista de Advogados Sócios -->
-    <div v-if="advogadosSocios.length === 0" class="p-6 bg-gray-50 border border-gray-200 rounded-xl text-center">
+    <!-- Lista de Advogados Parceiros -->
+    <div v-if="advogadosParceiros.length === 0" class="p-6 bg-gray-50 border border-gray-200 rounded-xl text-center">
       <p class="text-sm text-gray-500">
-        Nenhum advogado sócio ativo encontrado.
+        Nenhum advogado parceiro ou associado ativo encontrado.
       </p>
     </div>
 
@@ -25,6 +25,9 @@
                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   OAB
                 </th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Tipo de Vínculo
+                </th>
                 <th class="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">
                   Percentual (%)
                 </th>
@@ -32,7 +35,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <tr
-                v-for="(advogado, index) in advogadosSocios"
+                v-for="(advogado, index) in advogadosParceiros"
                 :key="advogado.id"
                 class="hover:bg-gray-50 transition-colors"
               >
@@ -47,6 +50,11 @@
                       {{ advogado.oab_numero }}/{{ advogado.oab_uf }}
                     </span>
                     <span v-else class="text-gray-400">-</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="text-sm text-gray-600">
+                    {{ formatarTipoVinculo(advogado.tipo_vinculo) }}
                   </div>
                 </td>
                 <td class="px-4 py-3">
@@ -117,38 +125,47 @@ const emit = defineEmits(['update:modelValue', 'change', 'validation'])
 
 const supabase = useSupabaseClient()
 
-const advogadosSocios = ref([])
+const advogadosParceiros = ref([])
 const percentuaisErrors = ref({})
 const errorTotal = ref('')
 const isInitializing = ref(false)
 
 // Total de percentuais
 const totalPercentual = computed(() => {
-  return advogadosSocios.value.reduce((total, adv) => {
+  return advogadosParceiros.value.reduce((total, adv) => {
     const percentual = parseFloat(adv.percentual) || 0
     return total + percentual
   }, 0)
 })
 
-// Buscar advogados sócios ativos
-const fetchAdvogadosSocios = async () => {
+// Formatar tipo de vínculo para exibição
+const formatarTipoVinculo = (tipo) => {
+  const tipos = {
+    'associado': 'Associado',
+    'parceiro': 'Parceiro'
+  }
+  return tipos[tipo] || tipo
+}
+
+// Buscar advogados parceiros e associados ativos
+const fetchAdvogadosParceiros = async () => {
   try {
     const { data, error } = await supabase
       .from('advogados')
-      .select('id, nome, oab_numero, oab_uf')
-      .eq('tipo_vinculo', 'socio')
+      .select('id, nome, oab_numero, oab_uf, tipo_vinculo')
+      .in('tipo_vinculo', ['associado', 'parceiro'])
       .eq('ativo', true)
       .order('nome', { ascending: true })
 
     if (error) {
-      console.error('Erro ao buscar advogados sócios:', error)
+      console.error('Erro ao buscar advogados parceiros:', error)
       return
     }
 
     // Se há valores iniciais (modelValue), usa eles
     if (props.modelValue && props.modelValue.length > 0) {
       // Mapeia os advogados com os percentuais existentes
-      advogadosSocios.value = (data || []).map(advogado => {
+      advogadosParceiros.value = (data || []).map(advogado => {
         const existing = props.modelValue.find(v => v.id === advogado.id)
         return {
           ...advogado,
@@ -157,36 +174,36 @@ const fetchAdvogadosSocios = async () => {
       })
     } else {
       // Inicializa com percentuais zerados
-      advogadosSocios.value = (data || []).map(advogado => ({
+      advogadosParceiros.value = (data || []).map(advogado => ({
         ...advogado,
         percentual: 0
       }))
       
       // Distribui automaticamente se houver advogados
-      if (advogadosSocios.value.length > 0) {
+      if (advogadosParceiros.value.length > 0) {
         distributePercentuais()
       }
     }
 
     emitChange()
   } catch (error) {
-    console.error('Erro inesperado ao buscar advogados sócios:', error)
+    console.error('Erro inesperado ao buscar advogados parceiros:', error)
   }
 }
 
 // Distribui percentuais igualmente entre todos os advogados
 const distributePercentuais = () => {
-  if (advogadosSocios.value.length === 0) return
+  if (advogadosParceiros.value.length === 0) return
 
   isInitializing.value = true
   
   // Se há apenas um advogado, ele recebe 100%
-  if (advogadosSocios.value.length === 1) {
-    advogadosSocios.value[0].percentual = 100
+  if (advogadosParceiros.value.length === 1) {
+    advogadosParceiros.value[0].percentual = 100
   } else {
-    const percentualPorAdvogado = 100 / advogadosSocios.value.length
+    const percentualPorAdvogado = 100 / advogadosParceiros.value.length
     
-    advogadosSocios.value.forEach(advogado => {
+    advogadosParceiros.value.forEach(advogado => {
       advogado.percentual = parseFloat(percentualPorAdvogado.toFixed(2))
     })
   }
@@ -206,14 +223,14 @@ const handlePercentualChange = (advogadoId, event) => {
   }
   
   // Encontra o advogado que foi alterado
-  const advogadoAlterado = advogadosSocios.value.find(a => a.id === advogadoId)
+  const advogadoAlterado = advogadosParceiros.value.find(a => a.id === advogadoId)
   if (!advogadoAlterado) return
 
   // Atualiza o valor do advogado alterado
   advogadoAlterado.percentual = value
 
   // Se há apenas um advogado, ele recebe 100%
-  if (advogadosSocios.value.length === 1) {
+  if (advogadosParceiros.value.length === 1) {
     advogadoAlterado.percentual = 100
     clearErrors()
     validateAll()
@@ -222,7 +239,7 @@ const handlePercentualChange = (advogadoId, event) => {
   }
 
   // Calcula o total dos outros advogados (sem o que foi alterado)
-  const outrosAdvogados = advogadosSocios.value.filter(a => a.id !== advogadoId)
+  const outrosAdvogados = advogadosParceiros.value.filter(a => a.id !== advogadoId)
   const totalOutros = outrosAdvogados.reduce((sum, adv) => {
     return sum + (parseFloat(adv.percentual) || 0)
   }, 0)
@@ -265,7 +282,7 @@ const handlePercentualChange = (advogadoId, event) => {
 
 // Valida um percentual específico
 const validatePercentual = (advogadoId) => {
-  const advogado = advogadosSocios.value.find(a => a.id === advogadoId)
+  const advogado = advogadosParceiros.value.find(a => a.id === advogadoId)
   if (!advogado) return
 
   const percentual = parseFloat(advogado.percentual) || 0
@@ -283,7 +300,7 @@ const validatePercentual = (advogadoId) => {
 
 // Valida todos os percentuais
 const validateAll = () => {
-  advogadosSocios.value.forEach(advogado => {
+  advogadosParceiros.value.forEach(advogado => {
     validatePercentual(advogado.id)
   })
   validateTotal()
@@ -324,7 +341,7 @@ const getPercentualError = (advogadoId) => {
 const emitChange = () => {
   if (isInitializing.value) return
 
-  const data = advogadosSocios.value.map(advogado => ({
+  const data = advogadosParceiros.value.map(advogado => ({
     id: advogado.id,
     percentual: parseFloat(advogado.percentual) || 0
   }))
@@ -337,14 +354,14 @@ const emitChange = () => {
 watch(() => props.modelValue, (newValue) => {
   if (!newValue || newValue.length === 0) {
     // Se não há valores, redistribui
-    if (advogadosSocios.value.length > 0) {
+    if (advogadosParceiros.value.length > 0) {
       distributePercentuais()
     }
     return
   }
 
   // Atualiza os percentuais com os valores recebidos
-  advogadosSocios.value.forEach(advogado => {
+  advogadosParceiros.value.forEach(advogado => {
     const existing = newValue.find(v => v.id === advogado.id)
     if (existing) {
       advogado.percentual = parseFloat(existing.percentual) || 0
@@ -356,7 +373,7 @@ watch(() => props.modelValue, (newValue) => {
 
 // Buscar advogados ao montar
 onMounted(async () => {
-  await fetchAdvogadosSocios()
+  await fetchAdvogadosParceiros()
   validateAll()
 })
 
@@ -364,7 +381,6 @@ onMounted(async () => {
 defineExpose({
   validate: validateAll,
   clearErrors,
-  getData: () => advogadosSocios.value.map(a => ({ id: a.id, percentual: parseFloat(a.percentual) || 0 }))
+  getData: () => advogadosParceiros.value.map(a => ({ id: a.id, percentual: parseFloat(a.percentual) || 0 }))
 })
 </script>
-
