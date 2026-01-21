@@ -17,7 +17,8 @@
         :disabled="disabled"
         :required="required"
         :class="inputClasses"
-        @input="$emit('update:modelValue', $event.target.value)"
+        @input="handleInput"
+        @wheel.prevent="handleWheel"
         @blur="$emit('blur', $event)"
         @focus="$emit('focus', $event)"
       />
@@ -128,9 +129,46 @@ const props = defineProps({
   }
 })
 
-defineEmits(['update:modelValue', 'blur', 'focus'])
+const emit = defineEmits(['update:modelValue', 'blur', 'focus'])
 
 const showPassword = ref(false)
+
+// Handler para input que filtra apenas dígitos numéricos quando type é 'number'
+const handleInput = (event) => {
+  if (props.type === 'number') {
+    // Remove caracteres não numéricos, exceto o sinal de menos no início
+    let value = event.target.value.replace(/[^0-9-]/g, '')
+    
+    // Garante que há apenas um sinal de menos no início, se houver
+    if (value.startsWith('-')) {
+      value = '-' + value.substring(1).replace(/-/g, '')
+    } else {
+      value = value.replace(/-/g, '')
+    }
+    
+    // Atualiza o valor do input
+    event.target.value = value
+    
+    // Emite o valor apenas se for válido (número ou vazio)
+    if (value === '' || value === '-' || !isNaN(value)) {
+      emit('update:modelValue', value === '' ? '' : value)
+    }
+  } else {
+    // Para outros tipos, emite normalmente
+    emit('update:modelValue', event.target.value)
+  }
+}
+
+// Handler para prevenir scroll do mouse que altera valores numéricos
+const handleWheel = (event) => {
+  if (props.type === 'number' && document.activeElement === event.target) {
+    // Previne o comportamento padrão do scroll em inputs number que altera o valor
+    // Isso evita que o valor seja alterado acidentalmente quando o usuário usa o scroll
+    event.preventDefault()
+    // Opcionalmente, pode fazer blur para evitar que o usuário continue scrollando acidentalmente
+    // event.target.blur()
+  }
+}
 
 // Função para gerar hash simples e determinístico baseado em string
 // Esta função sempre retorna o mesmo hash para a mesma string,

@@ -1,9 +1,39 @@
 <template>
   <div class="w-full">
-    <label class="block text-sm font-semibold text-gray-800 mb-2.5 tracking-tight">
-      Advogados Parceiros
-      <span class="text-danger-500 ml-0.5">*</span>
-    </label>
+    <div class="flex items-center justify-between mb-2.5">
+      <label class="block text-sm font-semibold text-gray-800 tracking-tight">
+        Advogados Parceiros
+        <span class="text-danger-500 ml-0.5">*</span>
+      </label>
+      
+      <!-- Campo de Percentual Total (quando ambos grupos estão ativos) -->
+      <div v-if="showPercentualTotal" class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">
+          Percentual Total do Grupo:
+        </label>
+        <div class="relative w-32">
+          <input
+            :id="`percentual-total-parceiros`"
+            :value="percentualTotal"
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            placeholder="0"
+            :class="[
+              'w-full px-3 py-2 pr-8 border rounded-lg text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200 ease-in-out shadow-sm hover:shadow-md focus:shadow-lg',
+              'border-primary-400 focus:ring-primary-500 focus:border-primary-500 bg-primary-50 hover:border-primary-500'
+            ]"
+            @input="handlePercentualTotalInput($event)"
+            @blur="handlePercentualTotalBlur($event)"
+          />
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm font-semibold pointer-events-none">%</span>
+        </div>
+        <span class="text-sm text-gray-500">
+          (Outro grupo: {{ percentualTotalOutroGrupo.toFixed(2) }}%)
+        </span>
+      </div>
+    </div>
 
     <!-- Lista de Advogados Parceiros -->
     <div v-if="advogadosParceiros.length === 0" class="p-6 bg-gray-50 border border-gray-200 rounded-xl text-center">
@@ -118,10 +148,22 @@ const props = defineProps({
   error: {
     type: String,
     default: ''
+  },
+  showPercentualTotal: {
+    type: Boolean,
+    default: false
+  },
+  percentualTotal: {
+    type: Number,
+    default: 100
+  },
+  percentualTotalOutroGrupo: {
+    type: Number,
+    default: 0
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'change', 'validation'])
+const emit = defineEmits(['update:modelValue', 'change', 'validation', 'update:percentualTotal'])
 
 const supabase = useSupabaseClient()
 
@@ -197,11 +239,15 @@ const distributePercentuais = () => {
 
   isInitializing.value = true
   
-  // Se há apenas um advogado, ele recebe 100%
+  // Se ambos os grupos estão ativos, distribui baseado no percentual total do grupo
+  // Se apenas este grupo está ativo, distribui 100% entre os advogados
+  const percentualTotalGrupo = props.showPercentualTotal ? props.percentualTotal : 100
+  
+  // Se há apenas um advogado, ele recebe todo o percentual do grupo
   if (advogadosParceiros.value.length === 1) {
-    advogadosParceiros.value[0].percentual = 100
+    advogadosParceiros.value[0].percentual = percentualTotalGrupo
   } else {
-    const percentualPorAdvogado = 100 / advogadosParceiros.value.length
+    const percentualPorAdvogado = percentualTotalGrupo / advogadosParceiros.value.length
     
     advogadosParceiros.value.forEach(advogado => {
       advogado.percentual = parseFloat(percentualPorAdvogado.toFixed(2))
@@ -216,10 +262,11 @@ const distributePercentuais = () => {
 const handlePercentualChange = (advogadoId, event) => {
   let value = parseFloat(event.target.value) || 0
   
-  // Limita o valor máximo a 100
-  if (value > 100) {
-    value = 100
-    event.target.value = 100
+  // Limita o valor máximo baseado no percentual total do grupo
+  const percentualMaximo = props.showPercentualTotal ? props.percentualTotal : 100
+  if (value > percentualMaximo) {
+    value = percentualMaximo
+    event.target.value = percentualMaximo
   }
   
   // Encontra o advogado que foi alterado
@@ -229,9 +276,9 @@ const handlePercentualChange = (advogadoId, event) => {
   // Atualiza o valor do advogado alterado
   advogadoAlterado.percentual = value
 
-  // Se há apenas um advogado, ele recebe 100%
+  // Se há apenas um advogado, ele recebe todo o percentual do grupo
   if (advogadosParceiros.value.length === 1) {
-    advogadoAlterado.percentual = 100
+    advogadoAlterado.percentual = percentualMaximo
     clearErrors()
     validateAll()
     emitChange()
@@ -244,8 +291,8 @@ const handlePercentualChange = (advogadoId, event) => {
     return sum + (parseFloat(adv.percentual) || 0)
   }, 0)
 
-  // Calcula quanto falta para 100%
-  const restante = 100 - value
+  // Calcula quanto falta para o percentual total do grupo
+  const restante = percentualMaximo - value
 
   // Se há outros advogados, distribui o restante proporcionalmente
   if (outrosAdvogados.length > 0) {
@@ -286,11 +333,12 @@ const validatePercentual = (advogadoId) => {
   if (!advogado) return
 
   const percentual = parseFloat(advogado.percentual) || 0
+  const percentualMaximo = props.showPercentualTotal ? props.percentualTotal : 100
 
   if (percentual < 0) {
     percentuaisErrors.value[advogadoId] = 'Percentual não pode ser negativo'
-  } else if (percentual > 100) {
-    percentuaisErrors.value[advogadoId] = 'Percentual não pode ser maior que 100%'
+  } else if (percentual > percentualMaximo) {
+    percentuaisErrors.value[advogadoId] = `Percentual não pode ser maior que ${percentualMaximo.toFixed(2)}% (percentual total do grupo)`
   } else {
     delete percentuaisErrors.value[advogadoId]
   }
@@ -309,10 +357,17 @@ const validateAll = () => {
 // Valida se o total é 100%
 const validateTotal = () => {
   const total = totalPercentual.value
-  const diff = Math.abs(total - 100)
+  // Se ambos os grupos estão ativos, os percentuais individuais devem somar 100% do percentual total do grupo
+  // Se apenas este grupo está ativo, os percentuais individuais devem somar 100% do honorário total
+  const percentualEsperado = props.showPercentualTotal ? props.percentualTotal : 100
+  const diff = Math.abs(total - percentualEsperado)
 
   if (diff > 0.01) {
-    errorTotal.value = `A soma dos percentuais deve ser exatamente 100% (atual: ${total.toFixed(2)}%)`
+    if (props.showPercentualTotal) {
+      errorTotal.value = `A soma dos percentuais deve ser exatamente ${percentualEsperado.toFixed(2)}% (percentual total do grupo) (atual: ${total.toFixed(2)}%)`
+    } else {
+      errorTotal.value = `A soma dos percentuais deve ser exatamente 100% (atual: ${total.toFixed(2)}%)`
+    }
   } else {
     errorTotal.value = ''
   }
@@ -335,6 +390,40 @@ const clearErrors = () => {
 // Retorna o erro de um percentual específico
 const getPercentualError = (advogadoId) => {
   return percentuaisErrors.value[advogadoId] || ''
+}
+
+// Handler para mudança do percentual total do grupo
+const handlePercentualTotalInput = (event) => {
+  let value = parseFloat(event.target.value) || 0
+  
+  // Limita o valor máximo a 100
+  if (value > 100) {
+    value = 100
+    event.target.value = 100
+  }
+  
+  // Limita o valor mínimo a 0
+  if (value < 0) {
+    value = 0
+    event.target.value = 0
+  }
+  
+  // Emite o evento para o componente pai
+  emit('update:percentualTotal', value)
+}
+
+const handlePercentualTotalBlur = (event) => {
+  let value = parseFloat(event.target.value) || 0
+  
+  // Garante que o valor está entre 0 e 100
+  if (value < 0) {
+    value = 0
+  } else if (value > 100) {
+    value = 100
+  }
+  
+  // Emite o evento para o componente pai
+  emit('update:percentualTotal', value)
 }
 
 // Emite mudanças para o componente pai
@@ -370,6 +459,48 @@ watch(() => props.modelValue, (newValue) => {
 
   validateAll()
 }, { deep: true })
+
+// Watch para redistribuir percentuais quando o percentual total do grupo mudar
+watch(() => props.percentualTotal, (newPercentualTotal, oldPercentualTotal) => {
+  if (!props.showPercentualTotal || !oldPercentualTotal || oldPercentualTotal === 0) return
+  if (advogadosParceiros.value.length === 0) return
+  
+  // Ajusta proporcionalmente os percentuais individuais
+  const fator = newPercentualTotal / oldPercentualTotal
+  advogadosParceiros.value.forEach(advogado => {
+    advogado.percentual = parseFloat((advogado.percentual * fator).toFixed(2))
+  })
+  
+  validateAll()
+  emitChange()
+})
+
+// Watch para redistribuir quando o modo de exibição mudar (quando ambos grupos são ativados/desativados)
+watch(() => props.showPercentualTotal, (newValue) => {
+  if (advogadosParceiros.value.length === 0) return
+  
+  // Se mudou para mostrar percentual total, redistribui baseado no novo percentual
+  // Se mudou para não mostrar, redistribui para 100%
+  if (newValue && props.percentualTotal) {
+    const fator = props.percentualTotal / 100
+    advogadosParceiros.value.forEach(advogado => {
+      advogado.percentual = parseFloat((advogado.percentual * fator).toFixed(2))
+    })
+  } else if (!newValue) {
+    // Se não está mais mostrando percentual total, os percentuais individuais devem somar 100%
+    // Ajusta proporcionalmente se necessário
+    const totalAtual = totalPercentual.value
+    if (totalAtual > 0 && totalAtual !== 100) {
+      const fator = 100 / totalAtual
+      advogadosParceiros.value.forEach(advogado => {
+        advogado.percentual = parseFloat((advogado.percentual * fator).toFixed(2))
+      })
+    }
+  }
+  
+  validateAll()
+  emitChange()
+})
 
 // Buscar advogados ao montar
 onMounted(async () => {
