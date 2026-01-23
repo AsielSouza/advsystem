@@ -13,14 +13,14 @@
         <Input
           id="cliente-search"
           v-model="clienteSearch"
-          placeholder="Digite para buscar cliente..."
+          placeholder="Digite ou clique para selecionar cliente..."
           :error="error"
           @update:model-value="handleClienteSearch"
-          @focus="showClienteResults = true"
+          @focus="handleClienteFocus"
           @blur="handleClienteBlur"
         />
         
-        <!-- Dropdown de resultados -->
+        <!-- Dropdown de resultados (legítimo: sempre mostra ao focar — lista ou mensagem) -->
         <div
           v-if="showClienteResults && filteredClientes.length > 0"
           class="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
@@ -56,11 +56,11 @@
         
         <!-- Mensagem quando não há resultados -->
         <div
-          v-if="showClienteResults && filteredClientes.length === 0 && clienteSearch.length > 0"
+          v-if="showClienteResults && filteredClientes.length === 0"
           class="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4"
         >
           <p class="text-sm text-gray-500 text-center">
-            Nenhum cliente encontrado
+            {{ clienteSearch.trim() ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado' }}
           </p>
         </div>
       </div>
@@ -129,6 +129,8 @@ const clientes = ref([])
 const clienteSearch = ref('')
 const showClienteResults = ref(false)
 const clienteSelecionado = ref(null)
+/** Flag: limpeza do campo veio do focus (não do usuário). Evita watch limpar seleção. */
+const clearFromFocus = ref(false)
 const clienteDetalhes = ref({
   telefone: '',
   estado_civil: '',
@@ -210,10 +212,23 @@ const handleClienteSearch = () => {
   showClienteResults.value = true
 }
 
+/** Focus: abre dropdown. Se já há cliente, limpa o campo (placeholder) para nova busca. */
+const handleClienteFocus = () => {
+  showClienteResults.value = true
+  if (clienteSelecionado.value) {
+    clearFromFocus.value = true
+    clienteSearch.value = ''
+  }
+}
+
+/** Blur: fecha dropdown. Se há cliente (usuário não escolheu outro), restaura nome no campo (mantém seleção). */
 const handleClienteBlur = () => {
-  // Delay para permitir click no resultado
   setTimeout(() => {
     showClienteResults.value = false
+    if (clienteSelecionado.value) {
+      clienteSearch.value = clienteSelecionado.value.nome || clienteSelecionado.value.razao_social || ''
+      clearFromFocus.value = false
+    }
   }, 200)
 }
 
@@ -301,9 +316,13 @@ const fetchClienteDetalhes = async (cliente) => {
   }
 }
 
-// Watch clienteSearch para limpar seleção quando limpar o campo
+// Watch clienteSearch: limpa seleção só quando usuário esvazia o campo (não quando limpeza vem do focus)
 watch(clienteSearch, (newValue) => {
   if (!newValue || newValue.trim() === '') {
+    if (clearFromFocus.value) {
+      clearFromFocus.value = false
+      return
+    }
     clienteSelecionado.value = null
     clienteDetalhes.value = {
       telefone: '',

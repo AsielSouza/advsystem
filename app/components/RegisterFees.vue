@@ -13,8 +13,22 @@
           @change="handleClienteChange"
         />
         
+        <!-- Passo 1: Dados do Processo -->
+        <ProcessoCadFees
+          v-if="currentStep === 1"
+          v-model="formData.processo"
+          @change="handleProcessoChange"
+        />
+        
+        <!-- Passo 2: Financeiro -->
+        <FinanceiroCadFees
+          v-if="currentStep === 2"
+          v-model="formData.financeiro"
+          @change="handleFinanceiroChange"
+        />
+        
         <!-- Placeholder para os outros passos -->
-        <div v-else class="text-center py-12 text-gray-500">
+        <div v-if="currentStep > 2" class="text-center py-12 text-gray-500">
           <p class="text-lg font-medium">Passo {{ currentStep + 1 }} de 4</p>
           <p class="text-sm mt-2">Conteúdo será implementado aqui</p>
         </div>
@@ -59,6 +73,8 @@
 import { ref, reactive, computed } from 'vue'
 import RegisterFeesStepper from './RegisterFeesStepper.vue'
 import ClientCadFees from './ClientCadFees.vue'
+import ProcessoCadFees from './ProcessoCadFees.vue'
+import FinanceiroCadFees from './FinanceiroCadFees.vue'
 import Button from './Button.vue'
 
 const props = defineProps({
@@ -75,15 +91,24 @@ const currentStep = ref(0)
 // Dados do formulário (mantidos durante a navegação)
 const formData = reactive({
   cliente: null,
-  // Dados do Processo (serão preenchidos no passo 1)
-  numero_processo: '',
+  // Dados do Processo (preenchidos no passo 1)
+  processo: {
+    numero_processo: '',
+    valor_causa: '',
+    historico: ''
+  },
+  // Campos adicionais do processo (podem ser usados em outros passos)
   parte: '',
   parte_outro_descricao: '',
-  data_contratacao: '',
   descricao: '',
-  // Financeiro (será preenchido no passo 2)
+  // Financeiro (preenchido no passo 2)
+  financeiro: {
+    data_contratacao: '',
+    valor_honorario: '',
+    forma_pagamento: ''
+  },
+  // Campos adicionais financeiros (podem ser usados em outros passos)
   valor_total: '',
-  forma_pagamento: '',
   numero_parcelas: null,
   // Honorários (será preenchido no passo 3)
   advogado_responsavel_id: ''
@@ -94,6 +119,16 @@ const canAdvance = computed(() => {
   if (currentStep.value === 0) {
     // Passo Cliente: precisa ter cliente selecionado
     return !!formData.cliente && !!formData.cliente.id
+  }
+  if (currentStep.value === 1) {
+    // Passo Dados do Processo: número do processo é obrigatório
+    return !!formData.processo.numero_processo && formData.processo.numero_processo.trim() !== ''
+  }
+  if (currentStep.value === 2) {
+    // Passo Financeiro: data da contratação e valor do honorário são obrigatórios
+    return !!formData.financeiro.data_contratacao && 
+           !!formData.financeiro.valor_honorario && 
+           formData.financeiro.valor_honorario.trim() !== ''
   }
   // Outros passos: por enquanto sempre permite (validação será feita quando implementar cada passo)
   return true
@@ -108,6 +143,16 @@ const canSubmit = computed(() => {
 // Handler para mudança do cliente
 const handleClienteChange = (cliente) => {
   formData.cliente = cliente
+}
+
+// Handler para mudança dos dados do processo
+const handleProcessoChange = (processo) => {
+  formData.processo = processo
+}
+
+// Handler para mudança dos dados financeiros
+const handleFinanceiroChange = (financeiro) => {
+  formData.financeiro = financeiro
 }
 
 // Handler para avançar para o próximo passo
