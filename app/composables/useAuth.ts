@@ -88,7 +88,7 @@ export const useAuth = () => {
               id: data.user.id,
               display_name: displayName,
               email: data.user.email
-            }, { onConflict: 'id' })
+            } as any, { onConflict: 'id' })
         } catch {
           // Ignora erros ao criar/atualizar perfil
         }
@@ -216,7 +216,7 @@ export const useAuth = () => {
               id: data.user.id,
               display_name: cleanDisplayName,
               email: cleanEmail
-            }, { onConflict: 'id' })
+            } as any, { onConflict: 'id' })
         } catch (profileError) {
           console.error('Erro ao criar/atualizar perfil:', profileError)
         }

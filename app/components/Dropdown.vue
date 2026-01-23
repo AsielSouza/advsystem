@@ -21,7 +21,7 @@
       >
         <option value="" disabled>{{ placeholder || 'Selecione uma opção' }}</option>
         <option
-          v-for="option in options"
+          v-for="option in computedOptions"
           :key="option.value"
           :value="option.value"
         >
@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -70,8 +70,9 @@ const props = defineProps({
   },
   options: {
     type: Array,
-    required: true,
+    default: () => [],
     validator: (value) => {
+      if (value.length === 0) return true
       return value.every(opt => opt.value !== undefined && opt.label !== undefined)
     }
   },
@@ -94,10 +95,98 @@ const props = defineProps({
   id: {
     type: String,
     default: ''
+  },
+  loadFormasPagamento: {
+    type: Boolean,
+    default: false
   }
 })
 
 defineEmits(['update:modelValue', 'blur', 'focus'])
+
+const supabase = useSupabaseClient()
+const internalOptions = ref([])
+const isLoading = ref(false)
+
+// Busca formas de pagamento do banco de dados
+const fetchFormasPagamento = async () => {
+  if (!props.loadFormasPagamento) return
+
+  isLoading.value = true
+
+  try {
+    // Busca todas as formas de pagamento
+    const { data, error: fetchError } = await supabase
+      .from('formas_pagamento')
+      .select('*')
+
+    if (fetchError) {
+      console.error('Erro ao buscar formas de pagamento:', fetchError)
+      internalOptions.value = []
+      return
+    }
+
+    if (!data || data.length === 0) {
+      internalOptions.value = []
+      return
+    }
+
+    // Detecta dinamicamente as chaves disponíveis
+    const primeiroRegistro = data[0]
+    if (!primeiroRegistro) {
+      internalOptions.value = []
+      return
+    }
+
+    const chaves = Object.keys(primeiroRegistro)
+    const idKey = chaves.find(k => k.includes('id') && !k.includes('created_at') && !k.includes('updated_at')) || chaves[0] || 'id'
+    const nomeKey = chaves.find(k => k.includes('nome')) || chaves[1] || 'nome'
+
+    // Mapeia os dados para o formato esperado
+    const opcoesMapeadas = data.map((forma) => {
+      const idValue = forma[idKey] || forma['forma.id'] || forma.id || ''
+      const nomeValue = forma[nomeKey] || forma['forma.nome'] || forma.nome || ''
+      return {
+        value: idValue.toString(),
+        label: nomeValue
+      }
+    }).filter(item => item.value && item.label)
+
+    // Ordena por label (nome) alfabeticamente
+    opcoesMapeadas.sort((a, b) => {
+      return a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })
+    })
+
+    internalOptions.value = opcoesMapeadas
+  } catch (err) {
+    console.error('Erro inesperado ao buscar formas de pagamento:', err)
+    internalOptions.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Computed para retornar as opções corretas
+const computedOptions = computed(() => {
+  if (props.loadFormasPagamento) {
+    return internalOptions.value
+  }
+  return props.options
+})
+
+// Busca formas de pagamento ao montar se necessário
+onMounted(() => {
+  if (props.loadFormasPagamento) {
+    fetchFormasPagamento()
+  }
+})
+
+// Watch para recarregar se a prop mudar
+watch(() => props.loadFormasPagamento, (newValue) => {
+  if (newValue) {
+    fetchFormasPagamento()
+  }
+})
 
 // Função para gerar hash simples e determinístico baseado em string
 const hashString = (str) => {
