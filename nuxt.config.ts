@@ -27,8 +27,10 @@ export default defineNuxtConfig({
   },
   // Configurações de runtime
   runtimeConfig: {
-    // Configurações públicas
-    public: {}
+    public: {
+      testUserEmail: process.env.TEST_USER_EMAIL ?? '',
+      testUserPassword: process.env.TEST_USER_PASSWORD ?? ''
+    }
   },
   // Suprime avisos de recursos não utilizados
   nitro: {

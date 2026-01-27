@@ -18,14 +18,9 @@
     />
 
     <!-- Forma de Pagamento -->
-    <Dropdown
-      id="forma-pagamento"
-      v-model="formaPagamento"
-      label="Forma de pagamento"
-      placeholder="Selecione a forma de pagamento"
-      :load-formas-pagamento="true"
-      :error="errors.forma_pagamento"
-    />
+    <label class="block text-sm font-semibold text-gray-800 mb-2.5 tracking-tight">
+      Forma de pagamento
+    </label>
   </div>
 </template>
 
@@ -33,7 +28,6 @@
 import { ref, watch } from 'vue'
 import InputData from './InputData.vue'
 import InputValor from './InputValor.vue'
-import Dropdown from './Dropdown.vue'
 
 const props = defineProps({
   modelValue: {
@@ -41,7 +35,7 @@ const props = defineProps({
     default: () => ({
       data_contratacao: '',
       valor_honorario: '',
-      forma_pagamento: ''
+      forma_pagamento: '' // Removido dropdown; gerenciamento futuro
     })
   },
   error: {
@@ -55,13 +49,11 @@ const emit = defineEmits(['update:modelValue', 'change'])
 // Estados locais
 const dataContratacao = ref(props.modelValue?.data_contratacao || '')
 const valorHonorario = ref(props.modelValue?.valor_honorario || '')
-const formaPagamento = ref(props.modelValue?.forma_pagamento || '')
 
 // Erros
 const errors = ref({
   data_contratacao: '',
-  valor_honorario: '',
-  forma_pagamento: ''
+  valor_honorario: ''
 })
 
 // Watch para data da contratação
@@ -74,17 +66,12 @@ watch(valorHonorario, () => {
   emitFormData()
 })
 
-// Watch para forma de pagamento
-watch(formaPagamento, () => {
-  emitFormData()
-})
-
 // Função para emitir dados do formulário
 const emitFormData = () => {
   const formData = {
     data_contratacao: dataContratacao.value,
     valor_honorario: valorHonorario.value || '',
-    forma_pagamento: formaPagamento.value
+    forma_pagamento: '' // Removido dropdown; gerenciamento futuro
   }
   
   emit('update:modelValue', formData)
@@ -96,7 +83,6 @@ watch(() => props.modelValue, (newValue) => {
   if (newValue) {
     dataContratacao.value = newValue.data_contratacao || ''
     valorHonorario.value = newValue.valor_honorario || ''
-    formaPagamento.value = newValue.forma_pagamento || ''
   }
 }, { immediate: true, deep: true })
 

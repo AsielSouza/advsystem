@@ -39,12 +39,22 @@
         >
           {{ isLoading ? 'Entrando...' : 'Entrar' }}
         </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          :full-width="true"
+          :disabled="isLoading"
+          @click="fillTestCredentials"
+        >
+          Login teste
+        </Button>
       </form>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import Input from './Input.vue'
 import InputPassword from './InputPassword.vue'
@@ -59,6 +69,7 @@ const props = defineProps({
 
 const emit = defineEmits(['submit'])
 
+const config = useRuntimeConfig()
 const email = ref('')
 const password = ref('')
 const isVisible = ref(false)
@@ -69,6 +80,11 @@ onMounted(() => {
     isVisible.value = true
   }, 50)
 })
+
+const fillTestCredentials = () => {
+  email.value = config.public.testUserEmail as string
+  password.value = config.public.testUserPassword as string
+}
 
 const handleSubmit = () => {
   emit('submit', {
