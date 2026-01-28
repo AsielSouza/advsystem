@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import Input from './Input.vue'
 
 const props = defineProps({
@@ -70,6 +70,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'change'])
+
+// Flag para evitar loop infinito durante atualizações internas
+const isUpdatingFromProps = ref(false)
 
 // Estado local
 const quantidadeParcelas = ref(props.modelValue?.length || 0)
@@ -134,6 +137,8 @@ const parcelas = computed(() => {
 
 // Watch para quantidade de parcelas - atualiza as parcelas automaticamente
 watch(quantidadeParcelas, (newValue) => {
+  if (isUpdatingFromProps.value) return
+  
   if (newValue && newValue > 0) {
     emitParcelas()
   } else {
@@ -144,6 +149,8 @@ watch(quantidadeParcelas, (newValue) => {
 
 // Watch para valor total - recalcula as parcelas quando o valor mudar
 watch(() => props.valorTotal, () => {
+  if (isUpdatingFromProps.value) return
+  
   if (quantidadeParcelas.value > 0) {
     emitParcelas()
   }
@@ -151,6 +158,8 @@ watch(() => props.valorTotal, () => {
 
 // Watch para data de contratação - recalcula as datas quando mudar
 watch(() => props.dataContratacao, () => {
+  if (isUpdatingFromProps.value) return
+  
   if (quantidadeParcelas.value > 0) {
     emitParcelas()
   }
@@ -164,10 +173,17 @@ const emitParcelas = () => {
 
 // Watch para atualizar quantidade quando modelValue mudar externamente
 watch(() => props.modelValue, (newValue) => {
-  if (newValue && Array.isArray(newValue) && newValue.length > 0) {
-    quantidadeParcelas.value = newValue.length
-  } else if (!newValue || newValue.length === 0) {
-    quantidadeParcelas.value = 0
+  if (isUpdatingFromProps.value) return
+  
+  const newLength = (newValue && Array.isArray(newValue) && newValue.length > 0) ? newValue.length : 0
+  
+  // Só atualiza se houver mudança real
+  if (quantidadeParcelas.value !== newLength) {
+    isUpdatingFromProps.value = true
+    quantidadeParcelas.value = newLength
+    nextTick(() => {
+      isUpdatingFromProps.value = false
+    })
   }
 }, { immediate: true, deep: true })
 

@@ -27,8 +27,15 @@
           @change="handleFinanceiroChange"
         />
         
+        <!-- Passo 3: Honorários -->
+        <HonorariosCadFees
+          v-if="currentStep === 3"
+          v-model="formData.honorarios"
+          @change="handleHonorariosChange"
+        />
+        
         <!-- Placeholder para os outros passos -->
-        <div v-if="currentStep > 2" class="text-center py-12 text-gray-500">
+        <div v-if="currentStep > 3" class="text-center py-12 text-gray-500">
           <p class="text-lg font-medium">Passo {{ currentStep + 1 }} de 4</p>
           <p class="text-sm mt-2">Conteúdo será implementado aqui</p>
         </div>
@@ -75,6 +82,7 @@ import RegisterFeesStepper from './RegisterFeesStepper.vue'
 import ClientCadFees from './ClientCadFees.vue'
 import ProcessoCadFees from './ProcessoCadFees.vue'
 import FinanceiroCadFees from './FinanceiroCadFees.vue'
+import HonorariosCadFees from './HonorariosCadFees.vue'
 import Button from './Button.vue'
 
 const props = defineProps({
@@ -105,13 +113,21 @@ const formData = reactive({
   financeiro: {
     data_contratacao: '',
     valor_honorario: '',
-    forma_pagamento: ''
+    forma_pagamento: '',
+    data_pagamento: '',
+    parcelas: []
   },
   // Campos adicionais financeiros (podem ser usados em outros passos)
   valor_total: '',
   numero_parcelas: null,
-  // Honorários (será preenchido no passo 3)
-  advogado_responsavel_id: ''
+  // Honorários (preenchido no passo 3)
+  honorarios: {
+    dividir_entre_socios: false,
+    advogado_responsavel_id: '',
+    divisao_socios: [],
+    dividir_entre_parceiros: false,
+    divisao_parceiros: []
+  }
 })
 
 // Validações para permitir avançar
@@ -129,6 +145,25 @@ const canAdvance = computed(() => {
     return !!formData.financeiro.data_contratacao && 
            !!formData.financeiro.valor_honorario && 
            formData.financeiro.valor_honorario.trim() !== ''
+  }
+  if (currentStep.value === 3) {
+    // Passo Honorários: se não dividir entre sócios, precisa ter advogado responsável
+    if (!formData.honorarios.dividir_entre_socios) {
+      return !!formData.honorarios.advogado_responsavel_id && 
+             formData.honorarios.advogado_responsavel_id.trim() !== ''
+    }
+    // Se dividir entre sócios, precisa ter pelo menos um sócio e total de 100%
+    if (formData.honorarios.dividir_entre_socios) {
+      const divisaoSocios = formData.honorarios.divisao_socios || []
+      if (divisaoSocios.length === 0) return false
+      
+      const total = divisaoSocios.reduce((sum, socio) => {
+        return sum + (parseFloat(socio.percentual) || 0)
+      }, 0)
+      
+      return Math.abs(total - 100) < 0.01 // Permite pequena diferença de arredondamento
+    }
+    return true
   }
   // Outros passos: por enquanto sempre permite (validação será feita quando implementar cada passo)
   return true
@@ -152,7 +187,18 @@ const handleProcessoChange = (processo) => {
 
 // Handler para mudança dos dados financeiros
 const handleFinanceiroChange = (financeiro) => {
-  formData.financeiro = financeiro
+  // Evita atualização desnecessária se os dados são os mesmos
+  if (JSON.stringify(formData.financeiro) !== JSON.stringify(financeiro)) {
+    Object.assign(formData.financeiro, financeiro)
+  }
+}
+
+// Handler para mudança dos dados de honorários
+const handleHonorariosChange = (honorarios) => {
+  // Evita atualização desnecessária se os dados são os mesmos
+  if (JSON.stringify(formData.honorarios) !== JSON.stringify(honorarios)) {
+    Object.assign(formData.honorarios, honorarios)
+  }
 }
 
 // Handler para avançar para o próximo passo
