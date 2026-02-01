@@ -8,8 +8,13 @@
       {{ label }}
       <span v-if="required" class="text-danger-500 ml-0.5">*</span>
     </label>
-    <div class="relative">
+    <div
+      class="relative"
+      :class="disabled ? 'cursor-not-allowed' : 'cursor-pointer'"
+      @click="openCalendar"
+    >
       <input
+        ref="inputRef"
         :id="inputId"
         type="date"
         :value="modelValue"
@@ -43,7 +48,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -89,6 +94,24 @@ const props = defineProps({
 })
 
 defineEmits(['update:modelValue', 'blur', 'focus'])
+
+const inputRef = ref(null)
+
+/**
+ * Abre o calendário nativo ao clicar em qualquer parte do campo.
+ * Usa showPicker() quando disponível, fallback para focus + click.
+ */
+const openCalendar = () => {
+  if (props.disabled) return
+  const input = inputRef.value
+  if (!input) return
+  if (typeof input.showPicker === 'function') {
+    input.showPicker()
+  } else {
+    input.focus()
+    input.click()
+  }
+}
 
 // Função para gerar hash simples e determinístico baseado em string
 const hashString = (str) => {
