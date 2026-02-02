@@ -25,6 +25,17 @@
         >
           Financeiro
         </button>
+        <button
+          @click="abaAtiva = 'honorarios'"
+          :class="[
+            'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+            abaAtiva === 'honorarios'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          ]"
+        >
+          Honorários
+        </button>
       </nav>
     </div>
 
@@ -32,6 +43,7 @@
     <div class="mt-6">
       <AbaHistórico v-if="abaAtiva === 'historico'" :honorario="honorario" />
       <AbaFinanceiro v-if="abaAtiva === 'financeiro'" :honorario="honorario" />
+      <AbaHonorarios v-if="abaAtiva === 'honorarios'" :honorario="honorario" />
     </div>
   </div>
 </template>
@@ -40,6 +52,7 @@
 import { ref } from 'vue'
 import AbaHistórico from './AbaHistórico.vue'
 import AbaFinanceiro from './AbaFinanceiro.vue'
+import AbaHonorarios from './AbaHonorarios.vue'
 
 const props = defineProps({
   honorario: {
