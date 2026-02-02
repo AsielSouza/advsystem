@@ -3,6 +3,17 @@
     <div class="p-6">
       <!-- Stepper de Progresso -->
       <RegisterFeesStepper :current-step="currentStep" />
+
+      <!-- Percentual do honorário total para cada grupo (quando no passo Honorários e dividir entre parceiros ativo) -->
+      <PercentualGruposHonorario
+        v-if="currentStep === 3 && formData.honorarios.dividir_entre_parceiros"
+        :model-value="{
+          percentual_socios: formData.honorarios.percentual_socios,
+          percentual_parceiros: formData.honorarios.percentual_parceiros
+        }"
+        class="mt-4"
+        @update:model-value="handlePercentualGruposUpdate"
+      />
       
       <!-- Conteúdo dos Passos será adicionado aqui -->
       <div class="mt-8 relative">
@@ -79,6 +90,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import RegisterFeesStepper from './RegisterFeesStepper.vue'
+import PercentualGruposHonorario from './PercentualGruposHonorario.vue'
 import ClientCadFees from './ClientCadFees.vue'
 import ProcessoCadFees from './ProcessoCadFees.vue'
 import FinanceiroCadFees from './FinanceiroCadFees.vue'
@@ -126,6 +138,8 @@ const formData = reactive({
     advogado_responsavel_id: '',
     divisao_socios: [],
     dividir_entre_parceiros: false,
+    percentual_socios: 50,
+    percentual_parceiros: 50,
     divisao_parceiros: []
   }
 })
@@ -147,23 +161,36 @@ const canAdvance = computed(() => {
            formData.financeiro.valor_honorario.trim() !== ''
   }
   if (currentStep.value === 3) {
-    // Passo Honorários: se não dividir entre sócios, precisa ter advogado responsável
-    if (!formData.honorarios.dividir_entre_socios) {
-      return !!formData.honorarios.advogado_responsavel_id && 
-             formData.honorarios.advogado_responsavel_id.trim() !== ''
-    }
-    // Se dividir entre sócios, precisa ter pelo menos um sócio e total de 100%
-    if (formData.honorarios.dividir_entre_socios) {
-      const divisaoSocios = formData.honorarios.divisao_socios || []
+    const honorarios = formData.honorarios
+
+    // Se dividir entre parceiros: percentuais devem somar 100% e validar ambos os grupos
+    if (honorarios.dividir_entre_parceiros) {
+      const pSocios = parseFloat(honorarios.percentual_socios) || 0
+      const pParceiros = parseFloat(honorarios.percentual_parceiros) || 0
+      if (Math.abs(pSocios + pParceiros - 100) > 0.01) return false
+
+      const divisaoParceiros = honorarios.divisao_parceiros || []
+      if (divisaoParceiros.length === 0) return false
+      const totalParceiros = divisaoParceiros.reduce((sum, p) => sum + (parseFloat(p.percentual) || 0), 0)
+      if (Math.abs(totalParceiros - 100) > 0.01) return false
+
+      if (!honorarios.dividir_entre_socios) {
+        return !!honorarios.advogado_responsavel_id?.trim()
+      }
+      const divisaoSocios = honorarios.divisao_socios || []
       if (divisaoSocios.length === 0) return false
-      
-      const total = divisaoSocios.reduce((sum, socio) => {
-        return sum + (parseFloat(socio.percentual) || 0)
-      }, 0)
-      
-      return Math.abs(total - 100) < 0.01 // Permite pequena diferença de arredondamento
+      const totalSocios = divisaoSocios.reduce((sum, s) => sum + (parseFloat(s.percentual) || 0), 0)
+      return Math.abs(totalSocios - 100) < 0.01
     }
-    return true
+
+    // Se não dividir entre parceiros: lógica original
+    if (!honorarios.dividir_entre_socios) {
+      return !!honorarios.advogado_responsavel_id && honorarios.advogado_responsavel_id.trim() !== ''
+    }
+    const divisaoSocios = honorarios.divisao_socios || []
+    if (divisaoSocios.length === 0) return false
+    const total = divisaoSocios.reduce((sum, socio) => sum + (parseFloat(socio.percentual) || 0), 0)
+    return Math.abs(total - 100) < 0.01
   }
   // Outros passos: por enquanto sempre permite (validação será feita quando implementar cada passo)
   return true
@@ -191,6 +218,12 @@ const handleFinanceiroChange = (financeiro) => {
   if (JSON.stringify(formData.financeiro) !== JSON.stringify(financeiro)) {
     Object.assign(formData.financeiro, financeiro)
   }
+}
+
+// Handler para atualização dos percentuais Sócios/Parceiros (do header)
+const handlePercentualGruposUpdate = (value) => {
+  formData.honorarios.percentual_socios = value.percentual_socios
+  formData.honorarios.percentual_parceiros = value.percentual_parceiros
 }
 
 // Handler para mudança dos dados de honorários

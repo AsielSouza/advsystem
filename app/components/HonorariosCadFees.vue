@@ -21,10 +21,17 @@
     />
 
     <!-- Tabela de Divisão entre Sócios (quando toggle está ATIVADO) -->
-    <TabelaDivisaoSocios
-      v-if="dividirEntreSocios"
-      v-model="divisaoSocios"
-    />
+    <div v-if="dividirEntreSocios" class="space-y-2">
+      <p class="text-sm font-semibold text-gray-800">
+        Divisão entre sócios
+        <span v-if="dividirEntreParceiros" class="text-gray-500 font-normal">
+          ({{ percentualSocios }}% do valor total)
+        </span>
+      </p>
+      <TabelaDivisaoSocios
+        v-model="divisaoSocios"
+      />
+    </div>
 
     <!-- Toggle: Dividir entre parceiros -->
     <Toggle
@@ -36,10 +43,17 @@
     />
 
     <!-- Tabela de Divisão entre Parceiros (quando toggle está ATIVADO) -->
-    <TabelaDivisaoParceiros
-      v-if="dividirEntreParceiros"
-      v-model="divisaoParceiros"
-    />
+    <div v-if="dividirEntreParceiros" class="space-y-2">
+      <p class="text-sm font-semibold text-gray-800">
+        Divisão entre advogados parceiros
+        <span class="text-gray-500 font-normal">
+          ({{ percentualParceiros }}% do valor total)
+        </span>
+      </p>
+      <TabelaDivisaoParceiros
+        v-model="divisaoParceiros"
+      />
+    </div>
   </div>
 </template>
 
@@ -58,6 +72,8 @@ const props = defineProps({
       advogado_responsavel_id: '',
       divisao_socios: [],
       dividir_entre_parceiros: false,
+      percentual_socios: 50,
+      percentual_parceiros: 50,
       divisao_parceiros: []
     })
   },
@@ -76,6 +92,8 @@ const dividirEntreSocios = ref(props.modelValue?.dividir_entre_socios || false)
 const advogadoResponsavel = ref(props.modelValue?.advogado_responsavel_id || '')
 const divisaoSocios = ref(props.modelValue?.divisao_socios || [])
 const dividirEntreParceiros = ref(props.modelValue?.dividir_entre_parceiros || false)
+const percentualSocios = ref(String(props.modelValue?.percentual_socios ?? 50))
+const percentualParceiros = ref(String(props.modelValue?.percentual_parceiros ?? 50))
 const divisaoParceiros = ref(props.modelValue?.divisao_parceiros || [])
 const opcoesAdvogados = ref([])
 const isLoadingAdvogados = ref(false)
@@ -88,7 +106,7 @@ const errors = ref({
 // Flag para evitar loop infinito durante atualizações internas
 const isUpdatingFromProps = ref(false)
 
-// Busca advogados ativos do banco de dados
+// Busca advogados sócios ativos (tipo de vínculo = Sócio) para o dropdown Advogado responsável
 const fetchAdvogados = async () => {
   isLoadingAdvogados.value = true
   
@@ -96,6 +114,7 @@ const fetchAdvogados = async () => {
     const { data, error } = await supabase
       .from('advogados')
       .select('id, nome, oab_numero, oab_uf')
+      .eq('tipo_vinculo', 'socio')
       .eq('ativo', true)
       .order('nome', { ascending: true })
 
@@ -138,8 +157,14 @@ const handleToggleChange = (value) => {
 const handleToggleParceirosChange = (value) => {
   if (isUpdatingFromProps.value) return
   
-  // Limpa divisão quando desativa toggle
-  if (!value) {
+  if (value) {
+    // Inicializa percentuais 50/50 quando ativa
+    const total = parseFloat(percentualSocios.value) + parseFloat(percentualParceiros.value)
+    if (Math.abs(total - 100) > 0.01) {
+      percentualSocios.value = '50.00'
+      percentualParceiros.value = '50.00'
+    }
+  } else {
     divisaoParceiros.value = []
   }
   
@@ -188,12 +213,21 @@ const emitFormData = () => {
     advogado_responsavel_id: dividirEntreSocios.value ? '' : advogadoResponsavel.value,
     divisao_socios: dividirEntreSocios.value ? divisaoSocios.value : [],
     dividir_entre_parceiros: dividirEntreParceiros.value,
+    percentual_socios: dividirEntreParceiros.value ? parseFloat(percentualSocios.value) || 50 : 100,
+    percentual_parceiros: dividirEntreParceiros.value ? parseFloat(percentualParceiros.value) || 50 : 0,
     divisao_parceiros: dividirEntreParceiros.value ? divisaoParceiros.value : []
   }
   
   emit('update:modelValue', formData)
   emit('change', formData)
 }
+
+// Watch para percentuais dos grupos
+watch([percentualSocios, percentualParceiros], () => {
+  if (!isUpdatingFromProps.value) {
+    emitFormData()
+  }
+})
 
 // Watch para atualizar campos quando modelValue mudar externamente
 watch(() => props.modelValue, (newValue) => {
@@ -205,6 +239,8 @@ watch(() => props.modelValue, (newValue) => {
     advogadoResponsavel.value !== (newValue.advogado_responsavel_id || '') ||
     JSON.stringify(divisaoSocios.value) !== JSON.stringify(newValue.divisao_socios || []) ||
     dividirEntreParceiros.value !== (newValue.dividir_entre_parceiros || false) ||
+    percentualSocios.value !== String(newValue.percentual_socios ?? 50) ||
+    percentualParceiros.value !== String(newValue.percentual_parceiros ?? 50) ||
     JSON.stringify(divisaoParceiros.value) !== JSON.stringify(newValue.divisao_parceiros || [])
   
   if (hasChanges) {
@@ -213,6 +249,8 @@ watch(() => props.modelValue, (newValue) => {
     advogadoResponsavel.value = newValue.advogado_responsavel_id || ''
     divisaoSocios.value = newValue.divisao_socios || []
     dividirEntreParceiros.value = newValue.dividir_entre_parceiros || false
+    percentualSocios.value = String(newValue.percentual_socios ?? 50)
+    percentualParceiros.value = String(newValue.percentual_parceiros ?? 50)
     divisaoParceiros.value = newValue.divisao_parceiros || []
     
     nextTick(() => {
