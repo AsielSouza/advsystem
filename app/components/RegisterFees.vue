@@ -78,9 +78,9 @@
           v-else
           type="button"
           @click="handleSubmit"
-          :disabled="!canSubmit"
+          :disabled="!canSubmit || submitting"
         >
-          Concluir
+          {{ submitting ? 'Salvando...' : 'Concluir' }}
         </Button>
       </div>
     </div>
@@ -101,6 +101,10 @@ const props = defineProps({
   honorarioId: {
     type: String,
     default: null
+  },
+  submitting: {
+    type: Boolean,
+    default: false
   }
 })
 

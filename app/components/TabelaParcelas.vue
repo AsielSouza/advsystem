@@ -56,9 +56,11 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <Button
-                v-if="parcela.status === 'pendente'"
+                v-if="getValorParcela(parcela) > 0"
                 variant="primary"
                 size="sm"
+                :disabled="!podePagarParcela(parcela)"
+                :title="!podePagarParcela(parcela) ? 'Pague a parcela anterior primeiro' : undefined"
                 @click="$emit('pagar', parcela)"
               >
                 Pagar
@@ -85,14 +87,37 @@ const props = defineProps({
 
 defineEmits(['pagar'])
 
-// Parcelas ordenadas por data de vencimento
+// Parcelas ordenadas por número (sequência 1, 2, 3...)
 const parcelasOrdenadas = computed(() => {
-  return [...props.parcelas].sort((a, b) => {
-    const dateA = new Date(a.data_vencimento)
-    const dateB = new Date(b.data_vencimento)
-    return dateA - dateB
-  })
+  return [...props.parcelas].sort((a, b) => a.numero_da_parcela - b.numero_da_parcela)
 })
+
+// Verifica se uma parcela está totalmente paga (valor recebido >= valor devido)
+const parcelaTotalmentePaga = (parcela) => {
+  const valorParcela = parseFloat(parcela.valor_parcela) || 0
+  const valorPago = parseFloat(parcela.valor_pago_parcela) || 0
+  return valorPago >= valorParcela
+}
+
+// Verifica se o botão de pagamento da parcela deve estar habilitado.
+// Regras: parcela 01 sempre habilitada quando pendente; demais apenas quando
+// a parcela imediatamente anterior estiver totalmente paga.
+const podePagarParcela = (parcela) => {
+  const valorParcela = parseFloat(parcela.valor_parcela) || 0
+  const valorPago = parseFloat(parcela.valor_pago_parcela) || 0
+  const saldoDevedor = valorParcela - valorPago
+
+  if (saldoDevedor <= 0) return false
+
+  const numero = parcela.numero_da_parcela
+
+  if (numero === 1) return true
+
+  const parcelaAnterior = props.parcelas.find((p) => p.numero_da_parcela === numero - 1)
+  if (!parcelaAnterior) return true
+
+  return parcelaTotalmentePaga(parcelaAnterior)
+}
 
 // Formatação
 const formatCurrency = (value) => {
