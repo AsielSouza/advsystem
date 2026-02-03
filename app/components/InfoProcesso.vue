@@ -30,7 +30,7 @@
       </div>
 
       <!-- Abas de Navegação -->
-      <AbasProcesso :honorario="honorario" />
+      <AbasProcesso :honorario="honorario" @pagamento-salvo="emit('pagamento-salvo')" />
     </div>
   </div>
 </template>
@@ -44,6 +44,8 @@ const props = defineProps({
     required: true
   }
 })
+
+const emit = defineEmits(['pagamento-salvo'])
 
 // Funções de formatação
 const formatCurrency = (value) => {

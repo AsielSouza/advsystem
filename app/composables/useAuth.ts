@@ -161,6 +161,70 @@ export const useAuth = () => {
   }
 
   /**
+   * Altera a senha do usuário autenticado.
+   * Valida a senha atual com signIn e em seguida atualiza para a nova senha no Auth.
+   *
+   * @param currentPassword - Senha atual do usuário
+   * @param newPassword - Nova senha desejada
+   * @returns Promise com { success, error }
+   */
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!currentPassword?.trim() || !newPassword?.trim()) {
+      error.value = 'Preencha a senha atual e a nova senha.'
+      return { success: false, error: error.value }
+    }
+
+    const cleanCurrent = currentPassword.trim()
+    const cleanNew = newPassword.trim()
+
+    if (cleanNew.length < 6) {
+      error.value = 'A nova senha deve ter no mínimo 6 caracteres.'
+      return { success: false, error: error.value }
+    }
+
+    const user = await getCurrentUser()
+    if (!user?.email) {
+      error.value = 'Usuário não autenticado. Faça login novamente.'
+      return { success: false, error: error.value }
+    }
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: cleanCurrent
+      })
+
+      if (signInError) {
+        isLoading.value = false
+        if (signInError.message?.toLowerCase().includes('invalid') || signInError.message?.toLowerCase().includes('credentials')) {
+          error.value = 'Senha atual incorreta.'
+        } else {
+          error.value = signInError.message || 'Erro ao validar senha atual.'
+        }
+        return { success: false, error: error.value }
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: cleanNew })
+
+      isLoading.value = false
+
+      if (updateError) {
+        error.value = updateError.message || 'Erro ao alterar senha.'
+        return { success: false, error: error.value }
+      }
+
+      return { success: true }
+    } catch (err: any) {
+      isLoading.value = false
+      error.value = err?.message || 'Erro ao alterar senha. Tente novamente.'
+      return { success: false, error: error.value }
+    }
+  }
+
+  /**
    * Registra um novo usuário no Supabase
    * 
    * @param email - Email do usuário
@@ -239,13 +303,14 @@ export const useAuth = () => {
     // Estados
     isLoading,
     error,
-    
+
     // Métodos
     login,
     logout,
     register,
     getCurrentUser,
-    isAuthenticated
+    isAuthenticated,
+    changePassword
   }
 }
 

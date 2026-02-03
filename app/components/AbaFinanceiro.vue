@@ -197,9 +197,12 @@ const abrirModalPagamento = (parcela) => {
   modalPagamentoAberto.value = true
 }
 
+const emit = defineEmits(['pagamento-salvo'])
+
 // Handler quando pagamento é salvo
 const handlePagamentoSalvo = () => {
   fetchParcelas()
+  emit('pagamento-salvo')
 }
 
 // Buscar parcelas ao montar

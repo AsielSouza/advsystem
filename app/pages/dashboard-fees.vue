@@ -5,12 +5,6 @@
       <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
           <ButtonBack @click="handleVoltar" />
-          <button
-            @click="irParaRascunho"
-            class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            Rascunho
-          </button>
         </div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
           Dashboard de Honorários
@@ -43,6 +37,8 @@
         <ListaHonorarios
           :honorarios="honorariosFiltrados"
           @editar="handleEditar"
+          @excluir="handleExcluir"
+          @pagamento-salvo="handlePagamentoSalvo"
         />
       </div>
 
@@ -316,10 +312,6 @@ const handleVoltar = () => {
   router.push('/honorarios')
 }
 
-const irParaRascunho = () => {
-  router.push('/dashboard-fees-rascunho')
-}
-
 const handleSearch = (termo) => {
   // A busca é reativa através do computed honorariosFiltrados
   // Não precisa fazer nada aqui, apenas manter para compatibilidade
@@ -327,6 +319,42 @@ const handleSearch = (termo) => {
 
 const handleEditar = (id) => {
   router.push(`/register-fees?id=${id}`)
+}
+
+/** Chamado quando um pagamento é registrado na aba Financeiro; atualiza parcelas para refletir na tabela de honorários. */
+const handlePagamentoSalvo = async () => {
+  await fetchParcelas()
+}
+
+const handleExcluir = async (honorario) => {
+  const processo = honorario.numero_processo || 'N/A'
+  if (!confirm(`Deseja realmente excluir o honorário do processo #${processo}? Esta ação não pode ser desfeita.`)) {
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('honorarios')
+      .delete()
+      .eq('id', honorario.id)
+
+    if (error) {
+      console.error('Erro ao excluir honorário:', error)
+      toast.showError(error.message || 'Erro ao excluir honorário. Tente novamente.', 5000)
+      return
+    }
+
+    toast.success('Honorário excluído com sucesso!', 3000)
+
+    await Promise.all([
+      fetchHonorarios(),
+      fetchParcelas(),
+      fetchSocios()
+    ])
+  } catch (err) {
+    console.error('Erro inesperado ao excluir honorário:', err)
+    toast.showError('Erro inesperado ao excluir. Tente novamente.', 5000)
+  }
 }
 
 // Carrega dados ao montar

@@ -9,7 +9,7 @@
     <div
       v-for="honorario in honorarios"
       :key="honorario.id"
-      class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
     >
       <!-- Cabeçalho do Honorário (Sempre visível) -->
       <button
@@ -60,8 +60,40 @@
             </div>
           </div>
         </div>
-        <!-- Ícone de expansão -->
-        <div class="ml-4 flex-shrink-0">
+        <!-- Dropdown de ações e ícone de expansão -->
+        <div class="ml-4 flex-shrink-0 flex items-center gap-2">
+          <div class="relative">
+            <button
+              type="button"
+              class="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Ações"
+              @click.stop="toggleDropdown(honorario.id)"
+            >
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+              </svg>
+            </button>
+            <div
+              v-if="dropdownAbertoId === honorario.id"
+              class="absolute right-0 top-full mt-1 py-1 w-40 bg-white rounded-lg border border-gray-200 shadow-lg z-[100] flex flex-col gap-0.5"
+              @click.stop
+            >
+              <div
+                class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                @click.stop="handleEditar(honorario)"
+              >
+                <ButtonEdit title="Editar honorário" @click.stop="handleEditar(honorario)" />
+                <span class="text-sm text-gray-700">Editar</span>
+              </div>
+              <div
+                class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                @click.stop="handleExcluir(honorario)"
+              >
+                <ButtonDelete title="Excluir honorário" @click.stop="handleExcluir(honorario)" />
+                <span class="text-sm text-gray-700">Excluir</span>
+              </div>
+            </div>
+          </div>
           <svg
             :class="[
               'h-5 w-5 text-gray-400 transition-transform duration-200',
@@ -76,28 +108,33 @@
         </div>
       </button>
 
-      <!-- Conteúdo Expandido -->
-      <Transition
-        enter-active-class="transition ease-out duration-200"
-        enter-from-class="opacity-0 max-h-0"
-        enter-to-class="opacity-100 max-h-screen"
-        leave-active-class="transition ease-in duration-150"
-        leave-from-class="opacity-100 max-h-screen"
-        leave-to-class="opacity-0 max-h-0"
-      >
-        <InfoProcesso
-          v-if="expandedHonorarios.includes(honorario.id)"
-          :honorario="honorario"
-        />
-      </Transition>
+      <!-- Conteúdo Expandido (overflow apenas aqui para não cortar o dropdown do cabeçalho) -->
+      <div class="overflow-hidden rounded-b-xl">
+        <Transition
+          enter-active-class="transition ease-out duration-200"
+          enter-from-class="opacity-0 max-h-0"
+          enter-to-class="opacity-100 max-h-screen"
+          leave-active-class="transition ease-in duration-150"
+          leave-from-class="opacity-100 max-h-screen"
+          leave-to-class="opacity-0 max-h-0"
+        >
+          <InfoProcesso
+            v-if="expandedHonorarios.includes(honorario.id)"
+            :honorario="honorario"
+            @pagamento-salvo="emit('pagamento-salvo')"
+          />
+        </Transition>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import BarraPercentual from './BarraPercentual.vue'
 import InfoProcesso from './InfoProcesso.vue'
+import ButtonEdit from './ButtonEdit.vue'
+import ButtonDelete from './ButtonDelete.vue'
 import { useHonorarioStatus } from '~/composables/useHonorarioStatus'
 
 const props = defineProps({
@@ -108,7 +145,40 @@ const props = defineProps({
 })
 
 const expandedHonorarios = ref([])
+const dropdownAbertoId = ref(null)
 const { formatStatus, getStatusClass } = useHonorarioStatus()
+
+const toggleDropdown = (honorarioId) => {
+  dropdownAbertoId.value = dropdownAbertoId.value === honorarioId ? null : honorarioId
+}
+
+const fecharDropdown = () => {
+  dropdownAbertoId.value = null
+}
+
+const emit = defineEmits(['editar', 'excluir', 'pagamento-salvo'])
+
+const handleEditar = (honorario) => {
+  fecharDropdown()
+  emit('editar', honorario.id)
+}
+
+const handleExcluir = (honorario) => {
+  fecharDropdown()
+  emit('excluir', honorario)
+}
+
+const handleClickOutside = () => {
+  fecharDropdown()
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 const toggleHonorario = (honorarioId) => {
   const index = expandedHonorarios.value.indexOf(honorarioId)

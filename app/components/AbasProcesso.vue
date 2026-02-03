@@ -42,7 +42,11 @@
     <!-- Conteúdo das Abas -->
     <div class="mt-6">
       <AbaHistórico v-if="abaAtiva === 'historico'" :honorario="honorario" />
-      <AbaFinanceiro v-if="abaAtiva === 'financeiro'" :honorario="honorario" />
+      <AbaFinanceiro
+        v-if="abaAtiva === 'financeiro'"
+        :honorario="honorario"
+        @pagamento-salvo="emit('pagamento-salvo')"
+      />
       <AbaHonorarios v-if="abaAtiva === 'honorarios'" :honorario="honorario" />
     </div>
   </div>
@@ -61,6 +65,7 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['pagamento-salvo'])
 const abaAtiva = ref('historico')
 </script>
 

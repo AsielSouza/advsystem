@@ -158,12 +158,9 @@ const handleToggleParceirosChange = (value) => {
   if (isUpdatingFromProps.value) return
   
   if (value) {
-    // Inicializa percentuais 50/50 quando ativa
-    const total = parseFloat(percentualSocios.value) + parseFloat(percentualParceiros.value)
-    if (Math.abs(total - 100) > 0.01) {
-      percentualSocios.value = '50.00'
-      percentualParceiros.value = '50.00'
-    }
+    // Ao ativar, define 50% para Sócios e 50% para Parceiros como padrão
+    percentualSocios.value = '50.00'
+    percentualParceiros.value = '50.00'
   } else {
     divisaoParceiros.value = []
   }

@@ -63,19 +63,128 @@
               </svg>
             </template>
           </ConfigurationMenuItem>
+          <ConfigurationMenuItem
+            label="Alterar senha"
+            @click="abrirModalAlterarSenha"
+          >
+            <template #icon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-gray-400 group-hover:text-primary-600 transition-colors"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </template>
+          </ConfigurationMenuItem>
         </div>
       </div>
     </Transition>
+
+    <!-- Modal Alterar senha -->
+    <Modal
+      v-model="showModalAlterarSenha"
+      title="Alterar senha"
+      size="md"
+    >
+      <form @submit.prevent="confirmarAlterarSenha" class="space-y-4">
+        <InputPassword
+          v-model="formSenha.senhaAtual"
+          label="Senha atual"
+          placeholder="Digite sua senha atual"
+          :error="erroSenhaAtual"
+          required
+          id="config-senha-atual"
+        />
+        <InputPassword
+          v-model="formSenha.novaSenha"
+          label="Nova senha"
+          placeholder="Digite a nova senha"
+          :error="erroNovaSenha"
+          required
+          id="config-nova-senha"
+        />
+        <InputPassword
+          v-model="formSenha.confirmarNovaSenha"
+          label="Confirmar nova senha"
+          placeholder="Confirme a nova senha"
+          :error="erroConfirmarSenha"
+          required
+          id="config-confirmar-senha"
+        />
+        <p
+          v-if="erroGeral"
+          class="text-sm text-danger-600 font-medium"
+        >
+          {{ erroGeral }}
+        </p>
+      </form>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            @click="fecharModalAlterarSenha"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            :disabled="isAlterandoSenha"
+            @click="confirmarAlterarSenha"
+          >
+            {{ isAlterandoSenha ? 'Alterando...' : 'Confirmar alteração' }}
+          </Button>
+        </div>
+      </template>
+    </Modal>
+
+    <!-- Toast -->
+    <Toast
+      v-if="toast.showToast.value"
+      :message="toast.toastMessage.value"
+      :type="toast.toastType.value"
+      :duration="toast.toastDuration.value"
+      @close="toast.close"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import ConfigurationMenuItem from './ConfigurationMenuItem.vue'
+import Modal from './Modal.vue'
+import InputPassword from './InputPassword.vue'
+import Button from './Button.vue'
+import Toast from './Toast.vue'
 
 const router = useRouter()
+const { changePassword } = useAuth()
+const toast = useToast()
+
 const isOpen = ref(false)
 const dropdownRef = ref(null)
+const showModalAlterarSenha = ref(false)
+const isAlterandoSenha = ref(false)
+
+const formSenha = reactive({
+  senhaAtual: '',
+  novaSenha: '',
+  confirmarNovaSenha: ''
+})
+
+const erroSenhaAtual = ref('')
+const erroNovaSenha = ref('')
+const erroConfirmarSenha = ref('')
+const erroGeral = ref('')
 
 const toggleConfig = () => {
   isOpen.value = !isOpen.value
@@ -88,6 +197,59 @@ const closeConfig = () => {
 const goToSocios = () => {
   closeConfig()
   router.push('/socios')
+}
+
+const abrirModalAlterarSenha = () => {
+  closeConfig()
+  formSenha.senhaAtual = ''
+  formSenha.novaSenha = ''
+  formSenha.confirmarNovaSenha = ''
+  erroSenhaAtual.value = ''
+  erroNovaSenha.value = ''
+  erroConfirmarSenha.value = ''
+  erroGeral.value = ''
+  showModalAlterarSenha.value = true
+}
+
+const fecharModalAlterarSenha = () => {
+  showModalAlterarSenha.value = false
+}
+
+const confirmarAlterarSenha = async () => {
+  erroSenhaAtual.value = ''
+  erroNovaSenha.value = ''
+  erroConfirmarSenha.value = ''
+  erroGeral.value = ''
+
+  const { senhaAtual, novaSenha, confirmarNovaSenha } = formSenha
+
+  if (!senhaAtual?.trim()) {
+    erroSenhaAtual.value = 'Informe a senha atual.'
+    return
+  }
+  if (!novaSenha?.trim()) {
+    erroNovaSenha.value = 'Informe a nova senha.'
+    return
+  }
+  if (novaSenha.trim().length < 6) {
+    erroNovaSenha.value = 'A nova senha deve ter no mínimo 6 caracteres.'
+    return
+  }
+  if (novaSenha !== confirmarNovaSenha) {
+    erroConfirmarSenha.value = 'A confirmação da senha não confere.'
+    return
+  }
+
+  isAlterandoSenha.value = true
+  const result = await changePassword(senhaAtual, novaSenha)
+  isAlterandoSenha.value = false
+
+  if (result.success) {
+    fecharModalAlterarSenha()
+    toast.success('Senha alterada com sucesso.', 3000)
+  } else {
+    erroGeral.value = result.error || 'Erro ao alterar senha.'
+  }
 }
 
 // Fechar dropdown ao clicar fora

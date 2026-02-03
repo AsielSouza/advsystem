@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import RegisterFeesStepper from './RegisterFeesStepper.vue'
 import PercentualGruposHonorario from './PercentualGruposHonorario.vue'
 import ClientCadFees from './ClientCadFees.vue'
@@ -100,6 +100,10 @@ import Button from './Button.vue'
 const props = defineProps({
   honorarioId: {
     type: String,
+    default: null
+  },
+  initialData: {
+    type: Object,
     default: null
   },
   submitting: {
@@ -259,4 +263,43 @@ const handleSubmit = () => {
     emit('submit', formData)
   }
 }
+
+// Preencher formulário quando initialData for passado (modo edição)
+watch(() => props.initialData, (data) => {
+  if (!data) return
+
+  formData.cliente = data.cliente
+    ? { ...data.cliente }
+    : null
+
+  formData.processo = {
+    numero_processo: data.processo?.numero_processo ?? '',
+    valor_causa: data.processo?.valor_causa ?? '',
+    historico: data.processo?.historico ?? ''
+  }
+
+  formData.financeiro = {
+    data_contratacao: data.financeiro?.data_contratacao ?? '',
+    valor_honorario: data.financeiro?.valor_honorario ?? '',
+    forma_pagamento: data.financeiro?.forma_pagamento ?? '',
+    data_pagamento: data.financeiro?.data_pagamento ?? '',
+    parcelas: Array.isArray(data.financeiro?.parcelas)
+      ? data.financeiro.parcelas.map((p) => ({ ...p }))
+      : []
+  }
+
+  formData.honorarios = {
+    dividir_entre_socios: data.honorarios?.dividir_entre_socios ?? false,
+    advogado_responsavel_id: data.honorarios?.advogado_responsavel_id ?? '',
+    divisao_socios: Array.isArray(data.honorarios?.divisao_socios)
+      ? data.honorarios.divisao_socios.map((s) => ({ ...s }))
+      : [],
+    dividir_entre_parceiros: data.honorarios?.dividir_entre_parceiros ?? false,
+    percentual_socios: data.honorarios?.percentual_socios ?? 50,
+    percentual_parceiros: data.honorarios?.percentual_parceiros ?? 50,
+    divisao_parceiros: Array.isArray(data.honorarios?.divisao_parceiros)
+      ? data.honorarios.divisao_parceiros.map((p) => ({ ...p }))
+      : []
+  }
+}, { immediate: true, deep: true })
 </script>
