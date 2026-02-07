@@ -2,7 +2,10 @@
   <div class="bg-white rounded-xl shadow-lg border border-gray-200">
     <div class="p-6">
       <!-- Stepper de Progresso -->
-      <RegisterFeesStepper :current-step="currentStep" />
+      <RegisterFeesStepper
+        :current-step="currentStep"
+        @go-to-step="handleGoToStep"
+      />
 
       <!-- Percentual do honorário total para cada grupo (quando no passo Honorários e dividir entre parceiros ativo) -->
       <PercentualGruposHonorario
@@ -152,36 +155,35 @@ const formData = reactive({
   }
 })
 
-// Validações para permitir avançar
-const canAdvance = computed(() => {
-  if (currentStep.value === 0) {
-    // Passo Cliente: precisa ter cliente selecionado
+// Valida se o formulário de um passo específico está preenchido (para stepper interativo)
+const isStepValid = (stepIndex) => {
+  if (stepIndex === 0) {
     return !!formData.cliente && !!formData.cliente.id
   }
-  if (currentStep.value === 1) {
-    // Passo Dados do Processo: número do processo é obrigatório
+  if (stepIndex === 1) {
     return !!formData.processo.numero_processo && formData.processo.numero_processo.trim() !== ''
   }
-  if (currentStep.value === 2) {
-    // Passo Financeiro: data da contratação e valor do honorário são obrigatórios
-    return !!formData.financeiro.data_contratacao && 
-           !!formData.financeiro.valor_honorario && 
-           formData.financeiro.valor_honorario.trim() !== ''
+  if (stepIndex === 2) {
+    const fin = formData.financeiro
+    if (!fin?.data_contratacao || !fin?.valor_honorario || fin.valor_honorario.trim() === '') return false
+    const forma = (fin.forma_pagamento || '').trim()
+    if (forma !== 'a_vista' && forma !== 'avista' && forma !== 'parcelado') return false
+    if (forma === 'parcelado') {
+      const parcelas = fin.parcelas || []
+      if (parcelas.length < 1) return false
+    }
+    return true
   }
-  if (currentStep.value === 3) {
+  if (stepIndex === 3) {
     const honorarios = formData.honorarios
-
-    // Se dividir entre parceiros: percentuais devem somar 100% e validar ambos os grupos
     if (honorarios.dividir_entre_parceiros) {
       const pSocios = parseFloat(honorarios.percentual_socios) || 0
       const pParceiros = parseFloat(honorarios.percentual_parceiros) || 0
       if (Math.abs(pSocios + pParceiros - 100) > 0.01) return false
-
       const divisaoParceiros = honorarios.divisao_parceiros || []
       if (divisaoParceiros.length === 0) return false
       const totalParceiros = divisaoParceiros.reduce((sum, p) => sum + (parseFloat(p.percentual) || 0), 0)
       if (Math.abs(totalParceiros - 100) > 0.01) return false
-
       if (!honorarios.dividir_entre_socios) {
         return !!honorarios.advogado_responsavel_id?.trim()
       }
@@ -190,8 +192,6 @@ const canAdvance = computed(() => {
       const totalSocios = divisaoSocios.reduce((sum, s) => sum + (parseFloat(s.percentual) || 0), 0)
       return Math.abs(totalSocios - 100) < 0.01
     }
-
-    // Se não dividir entre parceiros: lógica original
     if (!honorarios.dividir_entre_socios) {
       return !!honorarios.advogado_responsavel_id && honorarios.advogado_responsavel_id.trim() !== ''
     }
@@ -200,14 +200,15 @@ const canAdvance = computed(() => {
     const total = divisaoSocios.reduce((sum, socio) => sum + (parseFloat(socio.percentual) || 0), 0)
     return Math.abs(total - 100) < 0.01
   }
-  // Outros passos: por enquanto sempre permite (validação será feita quando implementar cada passo)
   return true
-})
+}
 
-// Validações para permitir concluir
+// Validações para permitir avançar (usa a mesma lógica do passo atual)
+const canAdvance = computed(() => isStepValid(currentStep.value))
+
+// Validações para permitir concluir (todos os passos devem estar válidos)
 const canSubmit = computed(() => {
-  // Por enquanto sempre permite (validação completa será feita quando implementar todos os passos)
-  return true
+  return isStepValid(0) && isStepValid(1) && isStepValid(2) && isStepValid(3)
 })
 
 // Handler para mudança do cliente
@@ -254,6 +255,20 @@ const handlePreviousStep = () => {
   if (currentStep.value > 0) {
     currentStep.value--
   }
+}
+
+// Handler do stepper interativo: voltar sempre livre; avançar só se passos intermediários preenchidos
+const handleGoToStep = (targetIndex) => {
+  const target = Math.max(0, Math.min(3, targetIndex))
+  if (target === currentStep.value) return
+  if (target < currentStep.value) {
+    currentStep.value = target
+    return
+  }
+  for (let i = currentStep.value; i < target; i++) {
+    if (!isStepValid(i)) return
+  }
+  currentStep.value = target
 }
 
 // Handler para submeter o formulário

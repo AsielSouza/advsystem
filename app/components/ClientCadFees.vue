@@ -19,49 +19,63 @@
           @focus="handleClienteFocus"
           @blur="handleClienteBlur"
         />
-        
-        <!-- Dropdown de resultados (legítimo: sempre mostra ao focar — lista ou mensagem) -->
+
+        <!-- Dropdown: lista ou mensagem + botão Novo cliente -->
         <div
-          v-if="showClienteResults && filteredClientes.length > 0"
-          class="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+          v-if="showClienteResults"
+          class="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
         >
           <div
-            v-for="cliente in filteredClientes"
-            :key="cliente.id"
-            class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
-            @mousedown.prevent="selectCliente(cliente)"
+            v-if="filteredClientes.length > 0"
+            class="max-h-60 overflow-y-auto"
           >
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-gray-900">
-                  {{ cliente.nome || cliente.razao_social }}
-                </p>
-                <p v-if="cliente.nome_fantasia" class="text-xs text-gray-500 mt-0.5">
-                  {{ cliente.nome_fantasia }}
-                </p>
+            <div
+              v-for="cliente in filteredClientes"
+              :key="cliente.id"
+              class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
+              @mousedown.prevent="selectCliente(cliente)"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-gray-900">
+                    {{ cliente.nome || cliente.razao_social }}
+                  </p>
+                  <p v-if="cliente.nome_fantasia" class="text-xs text-gray-500 mt-0.5">
+                    {{ cliente.nome_fantasia }}
+                  </p>
+                </div>
+                <span
+                  :class="[
+                    'px-2 py-1 text-xs font-medium rounded-full',
+                    cliente.tipo === 'PF'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-green-100 text-green-800'
+                  ]"
+                >
+                  {{ cliente.tipo }}
+                </span>
               </div>
-              <span
-                :class="[
-                  'px-2 py-1 text-xs font-medium rounded-full',
-                  cliente.tipo === 'PF'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-green-100 text-green-800'
-                ]"
-              >
-                {{ cliente.tipo }}
-              </span>
             </div>
           </div>
-        </div>
-        
-        <!-- Mensagem quando não há resultados -->
-        <div
-          v-if="showClienteResults && filteredClientes.length === 0"
-          class="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-4"
-        >
-          <p class="text-sm text-gray-500 text-center">
-            {{ clienteSearch.trim() ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado' }}
-          </p>
+          <div
+            v-else
+            class="px-4 py-3"
+          >
+            <p class="text-sm text-gray-500 text-center">
+              {{ clienteSearch.trim() ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado' }}
+            </p>
+          </div>
+          <div class="border-t border-gray-100 p-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="w-full justify-center"
+              @mousedown.prevent="openNewClientModal"
+            >
+              + Novo cliente
+            </Button>
+          </div>
         </div>
       </div>
       <p
@@ -102,6 +116,21 @@
       />
     </div>
 
+    <!-- Modal Novo Cliente (RegisterCard) -->
+    <Modal
+      v-model="showNewClientModal"
+      title="Novo cliente"
+      size="2xl"
+      :show-close="true"
+      :content-padding="false"
+      @close="showNewClientModal = false"
+    >
+      <RegisterCard
+        embedded
+        @saved="onNewClientSaved"
+        @cancel="showNewClientModal = false"
+      />
+    </Modal>
   </div>
 </template>
 
@@ -109,6 +138,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import Input from './Input.vue'
 import Button from './Button.vue'
+import Modal from './Modal.vue'
+import RegisterCard from './RegisterCard.vue'
 
 const props = defineProps({
   modelValue: {
@@ -127,6 +158,7 @@ const supabase = useSupabaseClient()
 
 const clientes = ref([])
 const clienteSearch = ref('')
+const showNewClientModal = ref(false)
 const showClienteResults = ref(false)
 const clienteSelecionado = ref(null)
 /** Flag: limpeza do campo veio do focus (não do usuário). Evita watch limpar seleção. */
@@ -357,6 +389,29 @@ watch(() => props.modelValue, async (newValue) => {
     }
   }
 }, { immediate: true })
+
+const openNewClientModal = () => {
+  showClienteResults.value = false
+  showNewClientModal.value = true
+}
+
+const onNewClientSaved = async (newClient) => {
+  showNewClientModal.value = false
+  await fetchClientes()
+  const cliente = clientes.value.find(c => c.id === newClient.id)
+  if (cliente) {
+    selectCliente(cliente)
+  } else {
+    selectCliente({
+      id: newClient.id,
+      tipo: newClient.tipo === 'PJ' ? 'PJ' : 'PF',
+      tipo_cliente: newClient.tipo_cliente,
+      nome: newClient.nome,
+      razao_social: newClient.nome,
+      nome_fantasia: newClient.nome_fantasia ?? null
+    })
+  }
+}
 
 // Buscar clientes ao montar
 onMounted(async () => {

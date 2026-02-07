@@ -80,7 +80,29 @@ export const useSalvarHonorario = () => {
       return { error: 'Data da contratação é obrigatória.' }
     }
 
-    const formaPagamento = financeiro?.forma_pagamento || ''
+    const formaPagamentoRaw = (financeiro?.forma_pagamento || '').trim()
+    if (!formaPagamentoRaw || (formaPagamentoRaw !== 'a_vista' && formaPagamentoRaw !== 'avista' && formaPagamentoRaw !== 'parcelado')) {
+      return { error: 'Forma de pagamento é obrigatória. Escolha "À vista" ou "Parcelado".' }
+    }
+    if (formaPagamentoRaw === 'parcelado') {
+      const parcelas = financeiro?.parcelas ?? []
+      if (parcelas.length < 1) {
+        return { error: 'No pagamento parcelado, a quantidade de parcelas deve ser igual ou superior a 1.' }
+      }
+    }
+
+    if (honorarios?.dividir_entre_parceiros) {
+      const divisaoParceiros = honorarios.divisao_parceiros ?? []
+      if (divisaoParceiros.length === 0) {
+        return { error: 'Com "Dividir entre parceiros" ativo, é obrigatório adicionar pelo menos 1 advogado parceiro.' }
+      }
+      const totalParceiros = divisaoParceiros.reduce((sum, p) => sum + (Number(p.percentual) || 0), 0)
+      if (Math.abs(totalParceiros - 100) > 0.01) {
+        return { error: 'A divisão entre advogados parceiros deve totalizar 100%.' }
+      }
+    }
+
+    const formaPagamento = formaPagamentoRaw
     const isParcelado = formaPagamento === 'parcelado'
     const isAVista = formaPagamento === 'a_vista' || formaPagamento === 'avista'
 

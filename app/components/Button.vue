@@ -21,7 +21,7 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'primary',
-    validator: (value) => ['primary', 'secondary', 'success', 'danger', 'warning', 'outline'].includes(value)
+    validator: (value) => ['primary', 'secondary', 'success', 'danger', 'warning', 'outline', 'ghost'].includes(value)
   },
   size: {
     type: String,
@@ -46,7 +46,8 @@ const variantClasses = {
   success: 'bg-gradient-to-r from-success-500 to-success-600 hover:from-success-600 hover:to-success-700 text-white focus:ring-success-500 shadow-md hover:shadow-lg active:shadow-sm',
   danger: 'bg-gradient-to-r from-danger-500 to-danger-600 hover:from-danger-600 hover:to-danger-700 text-white focus:ring-danger-500 shadow-md hover:shadow-lg active:shadow-sm',
   warning: 'bg-gradient-to-r from-warning-500 to-warning-600 hover:from-warning-600 hover:to-warning-700 text-white focus:ring-warning-500 shadow-md hover:shadow-lg active:shadow-sm',
-  outline: 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-500 bg-transparent hover:shadow-md active:shadow-sm'
+  outline: 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-500 bg-transparent hover:shadow-md active:shadow-sm',
+  ghost: 'border-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:ring-gray-400 bg-transparent'
 }
 
 const sizeClasses = {

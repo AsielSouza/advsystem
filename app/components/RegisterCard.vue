@@ -226,8 +226,15 @@ const props = defineProps({
   clienteId: {
     type: String,
     default: null
+  },
+  /** Quando true, usado dentro de modal (ex: tela Novo Honorário). Em sucesso emite 'saved' e não redireciona. */
+  embedded: {
+    type: Boolean,
+    default: false
   }
 })
+
+const emit = defineEmits(['saved', 'cancel'])
 
 const router = useRouter()
 const supabase = useSupabaseClient()
@@ -880,17 +887,39 @@ const handleSave = async () => {
 
     // Sucesso
     toast.success(`Cliente ${isEditMode.value ? 'editado' : 'cadastrado'} com sucesso!`, 3000)
-    
+
     if (!isEditMode.value) {
       clearForm()
     }
-    
+
     isSaving.value = false
-    
-    // Redireciona para o módulo de clientes após salvar/editar
-    setTimeout(() => {
-      router.push('/modulo-clientes')
-    }, 1000)
+
+    if (props.embedded && !isEditMode.value && data && data[0]) {
+      const row = data[0]
+      const clientPayload = activeTab.value === 'fisica'
+        ? {
+            id: row.id,
+            tipo: 'fisica',
+            tipo_cliente: 'fisica',
+            nome: row.nome_completo,
+            nome_fantasia: null
+          }
+        : {
+            id: row.id,
+            tipo: 'PJ',
+            tipo_cliente: 'juridica',
+            nome: row.razao_social,
+            nome_fantasia: row.nome_fantasia || null
+          }
+      emit('saved', clientPayload)
+      return
+    }
+
+    if (!props.embedded) {
+      setTimeout(() => {
+        router.push('/modulo-clientes')
+      }, 1000)
+    }
   } catch (error) {
     console.error('Erro inesperado:', error)
     toast.showError('Erro inesperado ao salvar. Tente novamente.', 5000)
@@ -898,10 +927,12 @@ const handleSave = async () => {
   }
 }
 
-// Função para cancelar e redirecionar
+// Função para cancelar e redirecionar (ou apenas emitir cancel no modo embedded)
 const handleCancel = () => {
-  // Se estiver em modo de edição, volta para a lista de clientes
-  // Caso contrário, volta para o módulo de clientes
+  if (props.embedded) {
+    emit('cancel')
+    return
+  }
   if (isEditMode.value) {
     router.push('/clientes')
   } else {

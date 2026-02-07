@@ -1,17 +1,24 @@
 <template>
   <div class="w-full">
     <ol class="items-center w-full flex justify-center space-x-4 sm:space-x-8">
-      <li 
-        v-for="(step, index) in steps" 
+      <li
+        v-for="(step, index) in steps"
         :key="step.id"
+        role="button"
+        tabindex="0"
+        :aria-current="currentStep === index ? 'step' : undefined"
+        :aria-label="`Ir para passo: ${step.title}`"
         :class="[
-          'flex items-center space-x-0 sm:space-x-3 transition-all duration-200',
+          'flex items-center space-x-0 sm:space-x-3 transition-all duration-200 cursor-pointer rounded-lg p-1 -m-1 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
           step.completed || currentStep > index
             ? 'text-green-600'
             : currentStep === index
             ? 'text-primary-600'
             : 'text-gray-500'
         ]"
+        @click="goToStep(index)"
+        @keydown.enter.prevent="goToStep(index)"
+        @keydown.space.prevent="goToStep(index)"
       >
         <!-- Ícone do Passo -->
         <span 
@@ -137,6 +144,12 @@ const props = defineProps({
     validator: (value) => value >= 0 && value <= 3
   }
 })
+
+const emit = defineEmits(['go-to-step'])
+
+const goToStep = (index) => {
+  emit('go-to-step', index)
+}
 
 const steps = computed(() => [
   {

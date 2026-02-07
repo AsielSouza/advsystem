@@ -46,6 +46,7 @@
     <div v-if="dividirEntreParceiros" class="space-y-2">
       <p class="text-sm font-semibold text-gray-800">
         Divisão entre advogados parceiros
+        <span class="text-danger-500 ml-0.5">*</span>
         <span class="text-gray-500 font-normal">
           ({{ percentualParceiros }}% do valor total)
         </span>
@@ -53,6 +54,15 @@
       <TabelaDivisaoParceiros
         v-model="divisaoParceiros"
       />
+      <p
+        v-if="divisaoParceiros.length === 0"
+        class="text-sm text-danger-600 font-medium flex items-center gap-1.5"
+      >
+        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        É obrigatório adicionar pelo menos 1 advogado parceiro.
+      </p>
     </div>
   </div>
 </template>
