@@ -124,8 +124,10 @@ const listaSocios = computed(() => {
   }
 
   if (honorario?.advogado_responsavel && !honorario?.dividir_entre_socios) {
-    const aReceber = valorTotal.value
-    const disponivelResgate = totalPago.value
+    // Com divisão com parceiros: responsável (sócio) recebe apenas percentual_socios do total
+    const pSocios = percentualSocios.value / 100
+    const aReceber = dividirEntreParceiros.value ? valorTotal.value * pSocios : valorTotal.value
+    const disponivelResgate = dividirEntreParceiros.value ? totalPago.value * pSocios : totalPago.value
     const provisionado = Math.max(0, aReceber - disponivelResgate)
 
     return [{

@@ -31,13 +31,13 @@
             </span>
           </div>
           <div class="flex flex-col gap-2 text-sm text-gray-600">
-            <!-- Advogado Responsável Único -->
+            <!-- Advogado Responsável (sócio único); valor total ou só parte dos sócios se houver parceiros -->
             <div v-if="honorario.advogado_responsavel && !honorario.dividir_entre_socios" class="flex items-center gap-4">
               <span>
                 Advogado Responsável: {{ honorario.advogado_responsavel }}
               </span>
-              <span v-if="honorario.valor_total" class="font-semibold text-gray-900">
-                {{ formatCurrency(honorario.valor_total) }}
+              <span v-if="honorario.valor_total != null" class="font-semibold text-gray-900">
+                {{ formatCurrency(valorExibicaoResponsavel(honorario)) }}
               </span>
             </div>
             <!-- Advogados Responsáveis (Sócios) com Barra de Percentual -->
@@ -187,6 +187,16 @@ const toggleHonorario = (honorarioId) => {
   } else {
     expandedHonorarios.value.push(honorarioId)
   }
+}
+
+// Valor a exibir ao lado do Advogado Responsável: total ou só parte dos sócios se houver divisão com parceiros
+const valorExibicaoResponsavel = (honorario) => {
+  const total = parseFloat(honorario?.valor_total) || 0
+  if (honorario?.dividir_entre_parceiros) {
+    const pSocios = (parseFloat(honorario.percentual_socios) ?? 100) / 100
+    return total * pSocios
+  }
+  return total
 }
 
 // Funções de formatação

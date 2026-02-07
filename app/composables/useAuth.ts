@@ -79,19 +79,8 @@ export const useAuth = () => {
           return { success: false, error: error.value }
         }
 
-        // Garante que o perfil existe (cria se não existir)
-        const displayName = data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'Usuário'
-        try {
-          await supabase
-            .from('profiles')
-            .upsert({
-              id: data.user.id,
-              display_name: displayName,
-              email: data.user.email
-            } as any, { onConflict: 'id' })
-        } catch {
-          // Ignora erros ao criar/atualizar perfil
-        }
+        // Perfil é criado/atualizado no Header após o redirect, quando a sessão já está
+        // estabelecida (evita 403 por RLS no POST imediato após signIn).
 
         // Login bem-sucedido - redireciona para index
         await router.push('/')
@@ -272,18 +261,8 @@ export const useAuth = () => {
       }
 
       if (data?.user) {
-        // Cria o perfil na tabela profiles
-        try {
-          await supabase
-            .from('profiles')
-            .upsert({
-              id: data.user.id,
-              display_name: cleanDisplayName,
-              email: cleanEmail
-            } as any, { onConflict: 'id' })
-        } catch (profileError) {
-          console.error('Erro ao criar/atualizar perfil:', profileError)
-        }
+        // Perfil será criado no Header quando o usuário fizer o primeiro login
+        // (evita 403 quando confirmação de email é obrigatória e sessão ainda não está ativa).
 
         isLoading.value = false
         return { success: true, user: data.user }
