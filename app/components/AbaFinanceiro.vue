@@ -147,10 +147,15 @@ const totalPendente = computed(() => {
 })
 
 const totalPaga = computed(() => {
-  // Soma todos os valores pagos (valor_pago_parcela) de todas as parcelas do honorário
-  return parcelas.value.reduce((sum, p) => {
+  // Valor de entrada (conta como já pago)
+  const valorEntrada = props.honorario?.possui_entrada
+    ? (parseFloat(props.honorario.valor_entrada) || 0)
+    : 0
+  // Soma dos valores pagos nas parcelas
+  const somaParcelas = parcelas.value.reduce((sum, p) => {
     return sum + (parseFloat(p.valor_pago_parcela) || 0)
   }, 0)
+  return valorEntrada + somaParcelas
 })
 
 const totalAtraso = computed(() => {

@@ -138,6 +138,9 @@ const formData = reactive({
     valor_honorario: '',
     forma_pagamento: '',
     data_pagamento: '',
+    possui_entrada: false,
+    valor_entrada: '',
+    data_entrada: '',
     parcelas: []
   },
   // Campos adicionais financeiros (podem ser usados em outros passos)
@@ -168,6 +171,12 @@ const isStepValid = (stepIndex) => {
     if (!fin?.data_contratacao || !fin?.valor_honorario || fin.valor_honorario.trim() === '') return false
     const forma = (fin.forma_pagamento || '').trim()
     if (forma !== 'a_vista' && forma !== 'avista' && forma !== 'parcelado') return false
+    if (fin.possui_entrada) {
+      const vEntrada = parseFloat(String(fin.valor_entrada || '0').replace(/\./g, '').replace(',', '.'))
+      const vTotal = parseFloat(String(fin.valor_honorario || '0').replace(/\./g, '').replace(',', '.'))
+      if (vEntrada <= 0 || vEntrada >= vTotal) return false
+      if (!fin.data_entrada?.trim()) return false
+    }
     if (forma === 'parcelado') {
       const parcelas = fin.parcelas || []
       if (parcelas.length < 1) return false
@@ -298,6 +307,9 @@ watch(() => props.initialData, (data) => {
     valor_honorario: data.financeiro?.valor_honorario ?? '',
     forma_pagamento: data.financeiro?.forma_pagamento ?? '',
     data_pagamento: data.financeiro?.data_pagamento ?? '',
+    possui_entrada: data.financeiro?.possui_entrada ?? false,
+    valor_entrada: data.financeiro?.valor_entrada ?? '',
+    data_entrada: data.financeiro?.data_entrada ?? '',
     parcelas: Array.isArray(data.financeiro?.parcelas)
       ? data.financeiro.parcelas.map((p) => ({ ...p }))
       : []

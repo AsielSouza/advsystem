@@ -30,6 +30,29 @@
       :error="errors.forma_pagamento"
     />
 
+    <!-- Possui entrada -->
+    <Toggle
+      id="possui-entrada"
+      v-model="possuiEntrada"
+      label="Possui entrada"
+      :description="possuiEntrada ? 'Sim' : 'Não'"
+    />
+    <template v-if="possuiEntrada">
+      <InputValor
+        id="valor-entrada"
+        v-model="valorEntrada"
+        label="Valor de entrada"
+        placeholder="0,00"
+        :error="errors.valor_entrada"
+      />
+      <InputData
+        id="data-entrada"
+        v-model="dataEntrada"
+        label="Data da entrada"
+        :error="errors.data_entrada"
+      />
+    </template>
+
     <!-- Data do Pagamento (apenas quando À vista) -->
     <InputData
       v-if="formaPagamento === 'a_vista'"
@@ -43,6 +66,7 @@
     <div v-if="formaPagamento === 'parcelado'" class="space-y-1">
       <TabelaParcelasCadFees
         :valor-total="valorHonorario"
+        :valor-entrada="possuiEntrada ? valorEntrada : '0'"
         :data-contratacao="dataContratacao"
         v-model="parcelas"
       />
@@ -64,6 +88,7 @@ import { ref, watch, nextTick, onMounted } from 'vue'
 import InputData from './InputData.vue'
 import InputValor from './InputValor.vue'
 import Dropdown from './Dropdown.vue'
+import Toggle from './Toggle.vue'
 import TabelaParcelasCadFees from './TabelaParcelasCadFees.vue'
 
 const props = defineProps({
@@ -74,6 +99,9 @@ const props = defineProps({
       valor_honorario: '',
       forma_pagamento: '',
       data_pagamento: '',
+      possui_entrada: false,
+      valor_entrada: '',
+      data_entrada: '',
       parcelas: []
     })
   },
@@ -92,6 +120,9 @@ const getHoje = () => new Date().toISOString().slice(0, 10)
 const dataContratacao = ref(props.modelValue?.data_contratacao?.trim() || getHoje())
 const valorHonorario = ref(props.modelValue?.valor_honorario || '')
 const formaPagamento = ref(props.modelValue?.forma_pagamento || '')
+const possuiEntrada = ref(props.modelValue?.possui_entrada ?? false)
+const valorEntrada = ref(props.modelValue?.valor_entrada || '')
+const dataEntrada = ref(props.modelValue?.data_entrada?.trim() || getHoje())
 const dataPagamento = ref(props.modelValue?.data_pagamento?.trim() || '')
 const parcelas = ref(props.modelValue?.parcelas || [])
 
@@ -107,6 +138,8 @@ const errors = ref({
   valor_honorario: '',
   forma_pagamento: '',
   data_pagamento: '',
+  valor_entrada: '',
+  data_entrada: '',
   parcelas: ''
 })
 
@@ -153,6 +186,26 @@ watch(formaPagamento, () => {
   emitFormData()
 })
 
+// Watch para possui entrada
+watch(possuiEntrada, () => {
+  if (!isUpdatingFromProps.value) {
+    if (!possuiEntrada.value) {
+      valorEntrada.value = ''
+      dataEntrada.value = ''
+    } else if (!dataEntrada.value?.trim()) {
+      dataEntrada.value = getHoje()
+    }
+    emitFormData()
+  }
+})
+
+// Watch para valor e data de entrada
+watch([valorEntrada, dataEntrada], () => {
+  if (!isUpdatingFromProps.value) {
+    emitFormData()
+  }
+}, { deep: true })
+
 // Watch para data de pagamento
 watch(dataPagamento, () => {
   if (!isUpdatingFromProps.value) {
@@ -174,6 +227,9 @@ const emitFormData = () => {
     valor_honorario: valorHonorario.value || '',
     forma_pagamento: formaPagamento.value || '',
     data_pagamento: formaPagamento.value === 'a_vista' ? dataPagamento.value : '',
+    possui_entrada: possuiEntrada.value,
+    valor_entrada: possuiEntrada.value ? (valorEntrada.value || '0') : '',
+    data_entrada: possuiEntrada.value ? (dataEntrada.value || '') : '',
     parcelas: formaPagamento.value === 'parcelado' ? parcelas.value : []
   }
   
@@ -191,6 +247,9 @@ watch(() => props.modelValue, (newValue) => {
     valorHonorario.value !== (newValue.valor_honorario || '') ||
     formaPagamento.value !== (newValue.forma_pagamento || '') ||
     dataPagamento.value !== (newValue.data_pagamento || '') ||
+    possuiEntrada.value !== (newValue.possui_entrada ?? false) ||
+    valorEntrada.value !== (newValue.valor_entrada || '') ||
+    dataEntrada.value !== (newValue.data_entrada || '') ||
     JSON.stringify(parcelas.value) !== JSON.stringify(newValue.parcelas || [])
   
   if (hasChanges) {
@@ -198,6 +257,9 @@ watch(() => props.modelValue, (newValue) => {
     dataContratacao.value = newValue.data_contratacao?.trim() || getHoje()
     valorHonorario.value = newValue.valor_honorario || ''
     formaPagamento.value = newValue.forma_pagamento || ''
+    possuiEntrada.value = newValue.possui_entrada ?? false
+    valorEntrada.value = newValue.valor_entrada || ''
+    dataEntrada.value = newValue.data_entrada?.trim() || (newValue.possui_entrada ? getHoje() : '')
     dataPagamento.value = newValue.data_pagamento?.trim() || (newValue.forma_pagamento === 'a_vista' ? getHoje() : '')
     parcelas.value = newValue.parcelas || []
     // Usa nextTick para garantir que a flag seja resetada após todas as atualizações

@@ -59,6 +59,10 @@ const props = defineProps({
     type: [String, Number],
     default: 0
   },
+  valorEntrada: {
+    type: [String, Number],
+    default: 0
+  },
   dataContratacao: {
     type: String,
     default: ''
@@ -82,25 +86,33 @@ const errors = ref({
   quantidade_parcelas: ''
 })
 
-// Calcula as parcelas baseado no valor total e quantidade
+// Parse valor no formato BR (1.000,50)
+const parseValorBR = (v) => {
+  if (v == null) return 0
+  const s = String(v).replace(/\./g, '').replace(',', '.')
+  const n = parseFloat(s)
+  return isNaN(n) ? 0 : n
+}
+
+// Calcula as parcelas baseado no valor total, valor de entrada e quantidade
 const parcelas = computed(() => {
   if (!quantidadeParcelas.value || quantidadeParcelas.value <= 0) {
     return []
   }
 
-  if (!props.valorTotal || parseFloat(props.valorTotal) <= 0) {
+  const valorTotalNum = parseValorBR(props.valorTotal)
+  const valorEntradaNum = parseValorBR(props.valorEntrada)
+  const quantidade = parseInt(quantidadeParcelas.value)
+
+  if (valorTotalNum <= 0 || isNaN(quantidade) || quantidade <= 0) {
     return []
   }
 
-  const valorTotalNum = parseFloat(props.valorTotal)
-  const quantidade = parseInt(quantidadeParcelas.value)
-  
-  if (isNaN(valorTotalNum) || isNaN(quantidade) || quantidade <= 0) {
-    return []
-  }
+  // Valor a ser parcelado = total - entrada (entrada não abate nas parcelas, mas reduz o valor parcelado)
+  const valorParcelado = Math.max(0, valorTotalNum - valorEntradaNum)
 
   // Calcula o valor de cada parcela
-  const valorParcela = valorTotalNum / quantidade
+  const valorParcela = valorParcelado / quantidade
   
   // Array para armazenar as parcelas
   const parcelasArray = []
@@ -149,6 +161,15 @@ watch(quantidadeParcelas, (newValue) => {
 
 // Watch para valor total - recalcula as parcelas quando o valor mudar
 watch(() => props.valorTotal, () => {
+  if (isUpdatingFromProps.value) return
+  
+  if (quantidadeParcelas.value > 0) {
+    emitParcelas()
+  }
+})
+
+// Watch para valor de entrada - recalcula as parcelas quando mudar
+watch(() => props.valorEntrada, () => {
   if (isUpdatingFromProps.value) return
   
   if (quantidadeParcelas.value > 0) {

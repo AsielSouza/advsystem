@@ -28,6 +28,9 @@ export interface FormDataHonorario {
     valor_honorario: string
     forma_pagamento: string
     data_pagamento: string
+    possui_entrada?: boolean
+    valor_entrada?: string
+    data_entrada?: string
     parcelas: Array<{
       numero: number
       dataPagamento: string
@@ -91,6 +94,15 @@ export const useSalvarHonorario = () => {
       }
     }
 
+    const possuiEntrada = financeiro?.possui_entrada === true
+    const valorEntradaStr = (financeiro?.valor_entrada || '').trim().replace(/\./g, '').replace(',', '.')
+    const valorEntradaNum = possuiEntrada ? (parseFloat(valorEntradaStr) || 0) : 0
+    const dataEntrada = possuiEntrada && financeiro?.data_entrada?.trim() ? financeiro.data_entrada.trim() : null
+
+    if (possuiEntrada && (valorEntradaNum <= 0 || valorEntradaNum >= valorTotal)) {
+      return { error: 'Valor de entrada deve ser maior que zero e menor que o valor total do honorário.' }
+    }
+
     if (honorarios?.dividir_entre_parceiros) {
       const divisaoParceiros = honorarios.divisao_parceiros ?? []
       if (divisaoParceiros.length === 0) {
@@ -134,7 +146,10 @@ export const useSalvarHonorario = () => {
       advogado_responsavel_id: honorarios?.advogado_responsavel_id?.trim() || null,
       dividir_entre_parceiros: honorarios?.dividir_entre_parceiros ?? false,
       percentual_socios: honorarios?.percentual_socios ?? 100,
-      percentual_parceiros: honorarios?.percentual_parceiros ?? 0
+      percentual_parceiros: honorarios?.percentual_parceiros ?? 0,
+      possui_entrada: possuiEntrada,
+      valor_entrada: possuiEntrada ? valorEntradaNum : 0,
+      data_entrada: dataEntrada
     }
 
     let honorarioId: string

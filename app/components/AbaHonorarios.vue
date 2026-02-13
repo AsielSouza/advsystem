@@ -64,10 +64,14 @@ const props = defineProps({
 const supabase = useSupabaseClient()
 const parceiros = ref([])
 
-// Total já pago (soma do valor_pago_parcela de todas as parcelas)
+// Total já pago (valor de entrada + soma do valor_pago_parcela de todas as parcelas)
 const totalPago = computed(() => {
+  const valorEntrada = props.honorario?.possui_entrada
+    ? (parseFloat(props.honorario.valor_entrada) || 0)
+    : 0
   const p = props.honorario?.parcelas || []
-  return p.reduce((sum, parcela) => sum + (parseFloat(parcela.valor_pago_parcela) || 0), 0)
+  const somaParcelas = p.reduce((sum, parcela) => sum + (parseFloat(parcela.valor_pago_parcela) || 0), 0)
+  return valorEntrada + somaParcelas
 })
 
 const valorTotal = computed(() => parseFloat(props.honorario?.valor_total) || 0)

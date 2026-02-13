@@ -122,6 +122,15 @@ export const useCarregarHonorario = () => {
         valor_honorario: valorTotal,
         forma_pagamento: formaPagamento,
         data_pagamento: dataPagamento,
+        possui_entrada: !!honorario.possui_entrada,
+        valor_entrada: honorario.valor_entrada != null ? String(honorario.valor_entrada) : '',
+        data_entrada: honorario.data_entrada
+          ? (typeof honorario.data_entrada === 'string'
+              ? honorario.data_entrada
+              : (honorario.data_entrada instanceof Date
+                  ? honorario.data_entrada.toISOString().slice(0, 10)
+                  : String(honorario.data_entrada)))
+          : '',
         parcelas
       },
       honorarios: {
