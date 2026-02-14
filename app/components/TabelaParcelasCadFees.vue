@@ -20,7 +20,7 @@
                 Nº parcela
               </th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                Data do pagamento
+                Data de vencimento
               </th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Valor a ser pago
@@ -37,7 +37,12 @@
                 <span class="text-sm font-medium text-gray-900">{{ parcela.numero }}</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span class="text-sm text-gray-900">{{ formatDate(parcela.dataPagamento) }}</span>
+                <InputData
+                  :model-value="parcela.dataPagamento"
+                  :id="`parcela-data-${parcela.numero}`"
+                  class="max-w-[180px]"
+                  @update:model-value="(v) => atualizarDataParcela(parcela.numero, v)"
+                />
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span class="text-sm text-gray-900">{{ formatCurrency(parcela.valor) }}</span>
@@ -51,8 +56,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import Input from './Input.vue'
+import InputData from './InputData.vue'
 
 const props = defineProps({
   valorTotal: {
@@ -78,8 +84,9 @@ const emit = defineEmits(['update:modelValue', 'change'])
 // Flag para evitar loop infinito durante atualizações internas
 const isUpdatingFromProps = ref(false)
 
-// Estado local
+// Estado local: parcelas em ref para preservar edições manuais
 const quantidadeParcelas = ref(props.modelValue?.length || 0)
+const parcelas = ref([])
 
 // Erros
 const errors = ref({
@@ -94,119 +101,110 @@ const parseValorBR = (v) => {
   return isNaN(n) ? 0 : n
 }
 
-// Calcula as parcelas baseado no valor total, valor de entrada e quantidade
-const parcelas = computed(() => {
-  if (!quantidadeParcelas.value || quantidadeParcelas.value <= 0) {
-    return []
+/**
+ * Recalcula as parcelas a partir da quantidade, valor total, valor entrada e data de contratação.
+ * Usa a regra: dataBase + 30 dias por parcela.
+ * Ao mudar quantidade, valor total ou data de contratação: recalcula tudo.
+ */
+function recalcularParcelas() {
+  const q = parseInt(quantidadeParcelas.value) || 0
+  if (q <= 0) {
+    parcelas.value = []
+    emit('update:modelValue', [])
+    emit('change', [])
+    return
   }
 
   const valorTotalNum = parseValorBR(props.valorTotal)
   const valorEntradaNum = parseValorBR(props.valorEntrada)
-  const quantidade = parseInt(quantidadeParcelas.value)
-
-  if (valorTotalNum <= 0 || isNaN(quantidade) || quantidade <= 0) {
-    return []
-  }
-
-  // Valor a ser parcelado = total - entrada (entrada não abate nas parcelas, mas reduz o valor parcelado)
   const valorParcelado = Math.max(0, valorTotalNum - valorEntradaNum)
+  const valorParcela = valorParcelado / q
 
-  // Calcula o valor de cada parcela
-  const valorParcela = valorParcelado / quantidade
-  
-  // Array para armazenar as parcelas
-  const parcelasArray = []
-  
-  // Data base para cálculo (data de contratação ou hoje)
   let dataBase = new Date()
   if (props.dataContratacao) {
-    const dataContratacaoParsed = new Date(props.dataContratacao)
-    if (!isNaN(dataContratacaoParsed.getTime())) {
-      dataBase = dataContratacaoParsed
-    }
+    const d = new Date(props.dataContratacao)
+    if (!isNaN(d.getTime())) dataBase = d
   }
 
-  // Gera as parcelas
-  for (let i = 1; i <= quantidade; i++) {
-    // Calcula a data de pagamento
-    // Primeira parcela: data de contratação + 30 dias
-    // Parcelas seguintes: mensais (30 dias cada)
-    const dataPagamento = new Date(dataBase)
-    dataPagamento.setDate(dataPagamento.getDate() + (30 * i))
-    
-    // Busca dados existentes da parcela se houver
-    const parcelaExistente = props.modelValue?.find(p => p.numero === i)
-    
-    parcelasArray.push({
+  const arr = []
+  for (let i = 1; i <= q; i++) {
+    const d = new Date(dataBase)
+    d.setDate(d.getDate() + 30 * i)
+    arr.push({
       numero: i,
-      dataPagamento: dataPagamento.toISOString().split('T')[0],
+      dataPagamento: d.toISOString().split('T')[0],
       valor: valorParcela
     })
   }
+  parcelas.value = arr
+  emitParcelas()
+}
 
-  return parcelasArray
-})
+/**
+ * Atualiza a data de vencimento de uma parcela específica (edição manual).
+ */
+function atualizarDataParcela(numero, novaData) {
+  const p = parcelas.value.find((x) => x.numero === numero)
+  if (p) {
+    p.dataPagamento = novaData || p.dataPagamento
+    emitParcelas()
+  }
+}
 
-// Watch para quantidade de parcelas - atualiza as parcelas automaticamente
+function emitParcelas() {
+  emit('update:modelValue', parcelas.value)
+  emit('change', parcelas.value)
+}
+
+// Watch quantidade - recalcula parcelas
 watch(quantidadeParcelas, (newValue) => {
   if (isUpdatingFromProps.value) return
-  
+
   if (newValue && newValue > 0) {
-    emitParcelas()
+    recalcularParcelas()
   } else {
+    parcelas.value = []
     emit('update:modelValue', [])
     emit('change', [])
   }
 })
 
-// Watch para valor total - recalcula as parcelas quando o valor mudar
-watch(() => props.valorTotal, () => {
-  if (isUpdatingFromProps.value) return
-  
-  if (quantidadeParcelas.value > 0) {
-    emitParcelas()
+// Watch valor total, valor entrada, data contratação - recalcula tudo
+watch(
+  () => [props.valorTotal, props.valorEntrada, props.dataContratacao],
+  () => {
+    if (isUpdatingFromProps.value) return
+    if (quantidadeParcelas.value > 0) {
+      recalcularParcelas()
+    }
   }
-})
+)
 
-// Watch para valor de entrada - recalcula as parcelas quando mudar
-watch(() => props.valorEntrada, () => {
-  if (isUpdatingFromProps.value) return
-  
-  if (quantidadeParcelas.value > 0) {
-    emitParcelas()
-  }
-})
+// Sync do modelValue (ex.: carregamento para edição)
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (isUpdatingFromProps.value) return
 
-// Watch para data de contratação - recalcula as datas quando mudar
-watch(() => props.dataContratacao, () => {
-  if (isUpdatingFromProps.value) return
-  
-  if (quantidadeParcelas.value > 0) {
-    emitParcelas()
-  }
-})
+    const arr = newValue && Array.isArray(newValue) ? newValue : []
+    const newLength = arr.length
 
-// Função para emitir as parcelas
-const emitParcelas = () => {
-  emit('update:modelValue', parcelas.value)
-  emit('change', parcelas.value)
-}
-
-// Watch para atualizar quantidade quando modelValue mudar externamente
-watch(() => props.modelValue, (newValue) => {
-  if (isUpdatingFromProps.value) return
-  
-  const newLength = (newValue && Array.isArray(newValue) && newValue.length > 0) ? newValue.length : 0
-  
-  // Só atualiza se houver mudança real
-  if (quantidadeParcelas.value !== newLength) {
-    isUpdatingFromProps.value = true
-    quantidadeParcelas.value = newLength
-    nextTick(() => {
-      isUpdatingFromProps.value = false
-    })
-  }
-}, { immediate: true, deep: true })
+    if (newLength > 0) {
+      if (quantidadeParcelas.value !== newLength) {
+        isUpdatingFromProps.value = true
+        quantidadeParcelas.value = newLength
+        nextTick(() => {
+          isUpdatingFromProps.value = false
+        })
+      }
+      parcelas.value = arr.map((p) => ({ ...p }))
+      // Não emite ao sincronizar do pai (ex.: carregamento para edição)
+    } else {
+      parcelas.value = []
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 // Formatação
 const formatCurrency = (value) => {
@@ -217,12 +215,5 @@ const formatCurrency = (value) => {
     style: 'currency',
     currency: 'BRL'
   }).format(numValue)
-}
-
-const formatDate = (date) => {
-  if (!date) return '-'
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '-'
-  return d.toLocaleDateString('pt-BR')
 }
 </script>

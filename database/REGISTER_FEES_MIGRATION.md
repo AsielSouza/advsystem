@@ -60,6 +60,25 @@ O cadastro de honorários possui 4 passos:
 | parcela.valor | `valor_parcela` | NUMERIC(15,2) |
 | — | `data_pagamento` | DATE | preenchido quando parcela for paga |
 
+### Contrato de Parcelas (Frontend ↔ Backend)
+
+**Formato esperado no formulário (`financeiro.parcelas`):**
+
+| Campo           | Tipo    | Formato       | Descrição                                      |
+|-----------------|---------|---------------|------------------------------------------------|
+| `numero`        | number  | 1, 2, 3, ...  | Número sequencial da parcela                   |
+| `dataPagamento` | string  | `YYYY-MM-DD`  | Data de vencimento (mapea para `data_vencimento`) |
+| `valor`         | number  | decimal       | Valor da parcela em R$                         |
+
+**Mapeamento no backend:**
+- `numero` → `numero_da_parcela`
+- `dataPagamento` → `data_vencimento` (coluna DATE)
+- `valor` → `valor_parcela`
+
+**Validações:**
+- `dataPagamento` deve ser string no formato ISO `YYYY-MM-DD`
+- Ao carregar, `data_vencimento` (DATE) é retornado como string no mesmo formato
+
 ### 2.4 Tabela `honorarios_socios`
 
 | Campo Formulário | Coluna DB | Observações |

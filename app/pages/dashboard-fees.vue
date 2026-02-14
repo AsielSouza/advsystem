@@ -5,6 +5,12 @@
       <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
           <ButtonBack @click="handleVoltar" />
+          <Button
+            variant="primary"
+            @click="handleNovoHonorario"
+          >
+            Novo honorário
+          </Button>
         </div>
         <h1 class="text-3xl font-bold text-gray-900 mb-2">
           Dashboard de Honorários
@@ -56,6 +62,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import Button from '../components/Button.vue'
 import ButtonBack from '../components/ButtonBack.vue'
 import CampoPesquisa from '../components/CampoPesquisa.vue'
 import ListaHonorarios from '../components/ListaHonorarios.vue'
@@ -310,6 +317,10 @@ const fetchSocios = async () => {
 // Handlers
 const handleVoltar = () => {
   router.push('/honorarios')
+}
+
+const handleNovoHonorario = () => {
+  router.push('/register-fees')
 }
 
 const handleSearch = (termo) => {
